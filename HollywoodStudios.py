@@ -1,7 +1,9 @@
 """ Hollywood Studios v0.3 """
 
-import Cards, Players, CardData, Dice, Game
+import Cards, Players, CardData, Dice, Game, Output
 from Constants import *
+
+Output.initOutput()
 
 Player1 = Players.Player("Phil")
 Player1.studio = MGM
@@ -15,7 +17,9 @@ for i in [1,2,3]:
     Player1.doActionPhase()
 
 for i in Game.board.theaterStack.cards[0].movies:
-    print i.name
+    Output.printToWindow(menuWindow, i.name)
+
+Output.killOutput()
 
 """ SETUP PHASE """
 

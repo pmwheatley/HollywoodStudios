@@ -6,3 +6,7 @@ Game.pyc
 HollywoodStudios.sublime-project
 HollywoodStudios.sublime-workspace
 Players.pyc
+*.pyc
+*.pyd
+log.txt
+output.csv

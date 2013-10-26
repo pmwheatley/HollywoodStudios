@@ -1,14 +1,59 @@
 from collections import Counter, OrderedDict
 
-import Cards, Game
+import Cards, Game, Output
 from Constants import *
 
+# def getChoiceFromList(prompt, list, noChoices=1):
+#     print prompt
+#     count = 1
+#     indexMapping = {}
+#     for i, currOption in enumerate(list):
+#         print '{0:2d} - {1}'.format(count, currOption)
+#         indexMapping[count] = currOption
+#         count += 1
+#     if noChoices > 1:
+#         chosenOption = []
+#     else:
+#         chosenOption = None
+#     while True:
+#         for i in range(0, noChoices):
+#             choice = input('%d of %d :'%(i, noChoices))
+#             if choice >= 1 and choice <= len(list):
+#                 if choice in indexMapping:
+#                     if noChoices > 1:
+#                         chosenOption.append(indexMapping[int(choice)])
+#                     else:
+#                         chosenOption = indexMapping[int(choice)]
+#         if chosenOption:
+#             return chosenOption
+# def getChoiceFromStack(prompt, currStack, noChoices=1):
+#     print prompt
+#     count = 1
+#     indexMapping = {}
+#     for i, currCard in enumerate(currStack.cards):
+#         print '{0:2d} - {1}'.format(count, currCard.visibleName())
+#         indexMapping[count] = currCard.name
+#         count += 1
+#     chosenCard = []
+
+#     for i in range(0, noChoices):
+#         choice = input('%d of %d :'%(i, noChoices))
+#         if choice >= 1 and choice <= len(currStack.cards):
+#             if choice in indexMapping:
+#                 chosenCard.append(indexMapping[choice])
+#     if chosenCard:
+#         return chosenCard
+#     else:
+#         return False
+
 def getChoiceFromList(prompt, list, noChoices=1):
-    print prompt
+    Output.menuWindow.clear()
+    Output.printToWindow(prompt + '\n', Output.menuWindow)
+
     count = 1
     indexMapping = {}
     for i, currOption in enumerate(list):
-        print '{0:2d} - {1}'.format(count, currOption)
+        Output.printToWindow('{0:2d} - {1}\n'.format(count, currOption), Output.menuWindow)
         indexMapping[count] = currOption
         count += 1
     if noChoices > 1:
@@ -17,7 +62,9 @@ def getChoiceFromList(prompt, list, noChoices=1):
         chosenOption = None
     while True:
         for i in range(0, noChoices):
-            choice = input('%d of %d :'%(i, noChoices))
+            Output.printToWindow('%d of %d : '%(i, noChoices), Output.menuWindow)
+            choice = Output.menuWindow.getch()
+            choice -= 48
             if choice >= 1 and choice <= len(list):
                 if choice in indexMapping:
                     if noChoices > 1:
@@ -27,17 +74,21 @@ def getChoiceFromList(prompt, list, noChoices=1):
         if chosenOption:
             return chosenOption
 def getChoiceFromStack(prompt, currStack, noChoices=1):
-    print prompt
+    Output.menuWindow.clear()
+    Output.printToWindow(prompt + '\n', Output.menuWindow)
+
     count = 1
     indexMapping = {}
     for i, currCard in enumerate(currStack.cards):
-        print '{0:2d} - {1}'.format(count, currCard.visibleName())
+        Output.printToWindow('{0:2d} - {1}\n'.format(count, currCard.visibleName()), Output.menuWindow)
         indexMapping[count] = currCard.name
         count += 1
     chosenCard = []
 
     for i in range(0, noChoices):
-        choice = input('%d of %d :'%(i, noChoices))
+        Output.printToWindow('%d of %d : '%(i, noChoices), Output.menuWindow)
+        choice = Output.menuWindow.getch()
+        choice -= 48
         if choice >= 1 and choice <= len(currStack.cards):
             if choice in indexMapping:
                 chosenCard.append(indexMapping[choice])

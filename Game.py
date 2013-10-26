@@ -6,6 +6,8 @@ from Constants import *
 class Board():
     def __init__(self, players=[]):
         self.players = players
+        self.currYear = 1
+        self.currTrimester = 1
 
         """ Initiate Decks """
         self.actorsDeck = copy.deepcopy(CardData.ACTORSDECK)
