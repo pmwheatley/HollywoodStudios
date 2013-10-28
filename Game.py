@@ -8,6 +8,7 @@ class Board():
         self.players = players
         self.currYear = 1
         self.currTrimester = 1
+        self.powerTrack = [0]
 
         """ Initiate Decks """
         self.actorsDeck = copy.deepcopy(CardData.ACTORSDECK)

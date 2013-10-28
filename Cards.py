@@ -172,7 +172,7 @@ class ActorCard(Card):
         return self.bonus[self.status][1]
     def visibleName(self):
         if self.face == FACEUP:
-            return '[ACTOR]\t%s'%(self.name)
+            return '[ACTOR %s] %s'%(self.type, self.name)
         else:
             return '[%s]'%(FACEDOWN)
 
@@ -189,7 +189,7 @@ class DirectorCard(Card):
         return self.bonus[genre]
     def visibleName(self):
         if self.face == FACEUP:
-            return '[DIRECTOR]\t%s'%(self.name)
+            return '[DIRECTOR] %s'%(self.name)
         else:
             return '[%s]'%(FACEDOWN)
 
@@ -209,9 +209,9 @@ class ScriptCard(Card):
         self.face = FACEDOWN
     def visibleName(self):
         if self.face == FACEUP:
-            return '[%s]\t%s (%s)'%(self.genre, self.name, self.actors)
+            return '[%s] %s (%s)'%(self.genre, self.name, self.actors)
         else:
-            return '[%s]\t%s (?)'%(self.genre, FACEDOWN)
+            return '[%s] %s (?)'%(self.genre, FACEDOWN)
 
 class CrewCard(Card):
     def __init__(self, name):

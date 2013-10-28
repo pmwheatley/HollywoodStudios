@@ -12,6 +12,8 @@ Game.board = Game.Board([Player1])
 
 for i in [1,2,3]:
 
+    Output.updateScreen()
+
     Player1.doUpkeepPhase()
     Player1.doConstructionPhase()
     Player1.doActionPhase()

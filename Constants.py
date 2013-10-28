@@ -1,5 +1,9 @@
 GAMESEED = 4184
 
+""" Turn Status """
+EMPLOYEESPAID = None
+UPKEEPPAID = None
+
 """ Theater Costs """
 THEATERCOST	= 20000
 THEATERUPKEEP	= 4000
