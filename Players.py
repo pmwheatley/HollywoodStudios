@@ -233,6 +233,8 @@ class Player:
                 invalidActionList[ACTOPENTHEATER] = 'No Closed Theaters'
             elif currAction == ACTCLOSETHEATER and len([i for i in self.theaterStack.cards if i.status == OPEN]) == 0:
                 invalidActionList[ACTCLOSETHEATER] = 'No Open Theaters'
+            elif currAction == ACTPHASESKIP and EMPLOYEESPAID not in self.turnStatus:
+                invalidActionList[ACTPHASESKIP] = 'Need to pay your Employes first'
             elif len(self.theaterStack.cards) == 0:
                 invalidActionList.update({ACTPAYUPKEEP: 'No Theaters', ACTCLOSETHEATER: 'No Theaters', ACTSELLTHEATER: 'No Theaters'})
 
@@ -257,18 +259,6 @@ class Player:
 
         while availableActions != []:
             self._updateEmployeeStack()
-
-            # if len(self.employeeStack.cards) == 0:
-            #     if ACTPAYSALARIES in availableActions:  availableActions.remove(ACTPAYSALARIES)
-            #     if ACTFIREEMPLOY in availableActions:   availableActions.remove(ACTFIREEMPLOY)
-            # if len([i for i in self.theaterStack.cards if i.status == OPEN]) == 0:
-            #     if ACTOPENTHEATER in availableActions:  availableActions.remove(ACTOPENTHEATER)
-            # if len([i for i in self.theaterStack.cards if i.status == CLOSED]) == 0:
-            #     if ACTCLOSETHEATER in availableActions: availableActions.remove(ACTCLOSETHEATER)
-            # if len(self.theaterStack.cards) == 0:
-            #     if ACTPAYUPKEEP in availableActions: availableActions.remove(ACTPAYUPKEEP)
-            #     if ACTCLOSETHEATER in availableActions: availableActions.remove(ACTCLOSETHEATER)
-            #     if ACTSELLTHEATER in availableActions:  availableActions.remove(ACTSELLTHEATER)
 
             action = self._choiceUpkeepPhase(availableActions)
             Output.updateScreen()
