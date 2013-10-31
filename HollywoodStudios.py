@@ -10,13 +10,15 @@ Player1.studio = MGM
 
 Game.board = Game.Board([Player1])
 
+Player1.doUpkeepPhase()
+
 for i in [1,2,3]:
 
     Output.updateScreen()
 
-    Player1.doUpkeepPhase()
     Player1.doConstructionPhase()
     Player1.doActionPhase()
+    Player1.doPrivateBookingPhase()
 
 for i in Game.board.theaterStack.cards[0].movies:
     Output.printToWindow(menuWindow, i.name)

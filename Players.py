@@ -18,10 +18,7 @@ def getChoiceFromList(player, prompt, list, noChoices=1):
             Output.printToWindow('{0:2d} - {1}\n'.format(count, currOption), Output.menuWindow)
             indexMapping[count] = currOption
         count += 1
-    if noChoices > 1:
-        chosenOption = []
-    else:
-        chosenOption = None
+    chosenOption = []
     while True:
         for i in range(0, noChoices):
             Output.printToWindow('%d of %d : '%(i, noChoices), Output.menuWindow)
@@ -166,7 +163,7 @@ class Player:
         return getChoiceFromStack('HIRE FROM THE EMPLOYMENT OFFICE', Game.board.employmentOffice)
     def _choiceHireYN(self, employee):
         return getChoiceFromList(self, 'HIRE %s?'%(employee), MENUYESNO)
-    def _choiceScriptPublicBook(self, scripts):
+    def _choiceScriptBook(self, scripts):
         return getChoiceFromStack('BOOK A MOVIE?', scripts)
     def _choiceAorBMovie(self, script):
         return getChoiceFromList(self, 'BOOK %s AS AN A-MOVIE ($%d) OR B-MOVIE ($%d)?'%(script.visibleName(), script.budgetA, script.budgetB), ["A-MOVIE", "B-MOVIE"])
@@ -178,6 +175,8 @@ class Player:
             return False
     def _choiceSelectDirector(self):
         return getChoiceFromStack('CHOOSE A DIRECTOR', self.directorStack)
+    def _choicePrivateBookingPhase(self, actionList):
+        return getChoiceFromList(self, 'PRIVATE BOOKING PHASE', actionList)
 
     def _determineValidOptions(self, actionList):
         invalidActionList = {}
@@ -200,6 +199,10 @@ class Player:
                 invalidActionList.update({ACTPAYSALARIES: 'Already Paid', ACTFIREEMPLOY: 'Already Paid'})
             if self.turnStatus.get(UPKEEPPAID):
                 invalidActionList.update({ACTCLOSETHEATER: 'Already Paid', ACTPAYUPKEEP: 'Already Paid'})
+
+            # CONSTRUCTION PHASE
+            if self.turnStatus.get(THEATERBOUGHT):
+                invalidActionList.update({ACTBUILDTHEATER: 'Already bought this phase.'})
 
             # ACTION PHASE
             if Game.board.theaterStack.cards[0].movies.countCards() == Game.board.theaterStack.cards[0].screens:
@@ -277,6 +280,7 @@ class Player:
                 if self._choiceBuildTheaterYN() == YES:
                     self._delMoney(THEATERCOST)
                     self.theaterStack.addCards(Cards.Deck([Cards.Theater(type=PRIVATE, screens=3, status=OPEN)]))
+                    self.turnStatus[THEATERBOUGHT] = True
             elif action == ACTPHASESKIP:
                 return True
             Output.updateScreen()
@@ -341,7 +345,7 @@ class Player:
                     if self._checkValidScript(i, self.actorStack):
                         validScripts.append(i)
                 if len(validScripts) > 0:
-                    currScriptName = self._choiceScriptPublicBook(Cards.Deck(validScripts))[0]
+                    currScriptName = self._choiceScriptBook(Cards.Deck(validScripts))[0]
                     if self.directorStack.countCards() > 0:
                         tmpMovie = Cards.Movie(currScriptName)
                         tmpMovie.scriptStack = self.scriptStack.drawCards(names=currScriptName)
@@ -353,12 +357,11 @@ class Player:
                             tmpType = self._choiceAorBMovie(tmpMovie.scriptStack.cards[0])
                             if tmpType == "A-MOVIE":    tmpMovie.type = AMOVIE
                             elif tmpType == "B-MOVIE":  tmpMovie.type = BMOVIE
-                            # if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
-                            #     Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
-                            #     return True
-                            self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
-                            Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
-                            return True
+                            if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
+                                self._delMoney(1000)
+                                self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
+                                Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                                return True
                         else:
                             self.scriptStack.addCards(tmpMovie.scriptStack)
                             self.directorStack.addCards(tmpMovie.directorStack)
@@ -372,4 +375,44 @@ class Player:
             elif action == ACTPHASESKIP:
                 return True
             Output.updateScreen()
+        return True
+    def doPrivateBookingPhase(self):
+        availableActions = PVTPHASEACTIONS + [ACTPHASESKIP]
+
+        while availableActions != []:
+            action = self._choicePrivateBookingPhase(availableActions)
+            Output.updateScreen()
+            if action == ACTPRIVATEBOOK:
+                validScripts = []
+                for i in self.scriptStack.cards:
+                    if self._checkValidScript(i, self.actorStack):
+                        validScripts.append(i)
+                if len(validScripts) > 0:
+                    currScriptName = self._choiceScriptBook(Cards.Deck(validScripts))[0]
+                    if self.directorStack.countCards() > 0:
+                        tmpMovie = Cards.Movie(currScriptName)
+                        tmpMovie.scriptStack = self.scriptStack.drawCards(names=currScriptName)
+                        tmpDirector = self._choiceSelectDirector()
+                        tmpMovie.directorStack.addCards(self.directorStack.drawCards(names=tmpDirector))
+                        tmpActors = self._choiceSelectActors(tmpMovie.scriptStack.cards[0])
+                        if tmpActors:
+                            tmpMovie.actorStack.addCards(self.actorStack.drawCards(names=tmpActors))
+                            tmpType = self._choiceAorBMovie(tmpMovie.scriptStack.cards[0])
+                            if tmpType == "A-MOVIE":    tmpMovie.type = AMOVIE
+                            elif tmpType == "B-MOVIE":  tmpMovie.type = BMOVIE
+                            for i in self.theaterStack.cards:
+                                if i.bookMovie(Cards.Deck([tmpMovie])):
+                                    self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
+                                    Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                                    return True
+                        else:
+                            self.scriptStack.addCards(tmpMovie.scriptStack)
+                            self.directorStack.addCards(tmpMovie.directorStack)
+                            self.actorStack.addCards(tmpMovie.actorStack)
+                            Output.printToWindow('INVALID SELECTION', Output.menuWindow)
+                    else:
+                        Output.printToWindow('NO DIRECTORS AVAILABLE', Output.menuWindow)
+                else:
+                    Output.printToWindow('NO VALID SCRIPTS', Output.menuWindow)
+
         return True
