@@ -10,6 +10,8 @@ Player1.studio = MGM
 
 Game.board = Game.Board([Player1])
 
+Output.updateScreen()
+
 Player1.doUpkeepPhase()
 
 for i in [1,2,3]:

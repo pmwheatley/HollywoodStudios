@@ -1,6 +1,6 @@
 from collections import Counter, OrderedDict
 
-import Cards, Game, Output
+import Cards, Game, Output, Dice
 from Constants import *
 
 def getChoiceFromList(player, prompt, list, noChoices=1):
@@ -8,12 +8,16 @@ def getChoiceFromList(player, prompt, list, noChoices=1):
     Output.printToWindow(prompt + '\n', Output.menuWindow)
 
     invalidActions = player._determineValidOptions(list)
+    freeActions = player._determineFreeOptions(list)
 
     count = 1
     indexMapping = {}
     for i, currOption in enumerate(list):
         if currOption in invalidActions.keys():
             Output.printToWindow('{0:2d} - {1} - {2}\n'.format(count, currOption, invalidActions.get(currOption)), Output.menuWindow, colorPair=1)
+        elif currOption in freeActions.keys():
+            Output.printToWindow('{0:2d} - {1}\n'.format(count, currOption), Output.menuWindow, colorPair=2)
+            indexMapping[count] = currOption
         else:
             Output.printToWindow('{0:2d} - {1}\n'.format(count, currOption), Output.menuWindow)
             indexMapping[count] = currOption
@@ -22,8 +26,8 @@ def getChoiceFromList(player, prompt, list, noChoices=1):
     while True:
         for i in range(0, noChoices):
             Output.printToWindow('%d of %d : '%(i, noChoices), Output.menuWindow)
-            choice = Output.menuWindow.getch()
-            choice -= 48
+            choice = int(Output.menuWindow.getstr(2))
+            #choice -= 48
             if choice >= 1 and choice <= len(list):
                 if choice in indexMapping:
                     if noChoices > 1:
@@ -47,8 +51,8 @@ def getChoiceFromStack(prompt, currStack, noChoices=1):
     while True:
         for i in range(0, noChoices):
             Output.printToWindow('%d of %d : '%(i, noChoices), Output.menuWindow)
-            choice = Output.menuWindow.getch()
-            choice -= 48
+            choice = int(Output.menuWindow.getstr(2))
+            #choice -= 48
             if choice >= 1 and choice <= len(currStack.cards):
                 if choice in indexMapping:
                     chosenCard.append(indexMapping[choice])
@@ -70,12 +74,14 @@ class Player:
         self.theaterStack = Cards.Deck([])
         self.money = 40000
         self.prestige = 0
-        self.statuettes = 0
+        self.statuettes = 2
         self.oscars = 0
         self.studio = None
         self.boxOfficeEarnings = 0
         self.noMoviesProduced = 0
-        self.turnStatus = {}
+        self.yearStatus = {}
+        self.phaseStatus = {}
+        self.currFreeActions = []
     def _addMoney(self, amount):
         self.money += amount
         return self.money
@@ -126,6 +132,16 @@ class Player:
             if list(diff.elements()) == []:
                 return True
         return False
+    def _addFreeActions(self, actionList):
+        if self.statuettes >= 2:
+            if ACTTRADE2STAT not in actionList:
+                actionList.append(ACTTRADE2STAT)
+            if ACTTRADE1STAT not in actionList:
+                actionList.append(ACTTRADE1STAT)
+        elif self.statuettes == 1:
+            if ACTTRADE1STAT not in actionList:
+                actionList.append(ACTTRADE1STAT)
+        return actionList
 
     # Decision Making methods
     def _choiceUpkeepPhase(self, actionList):
@@ -182,7 +198,9 @@ class Player:
         invalidActionList = {}
         for currAction in actionList:
             # UPKEEP PHASE
-            if   currAction == ACTPAYSALARIES and len(self.employeeStack.cards) == 0:
+            if   currAction == ACTCLAIMSCRIPTS and SCRIPTSCLAIMED in self.yearStatus:
+                invalidActionList[ACTCLAIMSCRIPTS] = 'Scripts already Claimed'
+            elif currAction == ACTPAYSALARIES and len(self.employeeStack.cards) == 0:
                 invalidActionList[ACTPAYSALARIES] = 'No Employees'
             elif currAction == ACTFIREEMPLOY and len(self.employeeStack.cards) == 0:
                 invalidActionList[ACTFIREEMPLOY] = 'No Employees'
@@ -190,18 +208,18 @@ class Player:
                 invalidActionList[ACTOPENTHEATER] = 'No Closed Theaters'
             elif currAction == ACTCLOSETHEATER and len([i for i in self.theaterStack.cards if i.status == OPEN]) == 0:
                 invalidActionList[ACTCLOSETHEATER] = 'No Open Theaters'
-            elif currAction == ACTPHASESKIP and EMPLOYEESPAID not in self.turnStatus:
+            elif currAction == ACTPHASESKIP and EMPLOYEESPAID not in self.yearStatus:
                 invalidActionList[ACTPHASESKIP] = 'Need to pay your Employes first'
             elif len(self.theaterStack.cards) == 0:
                 invalidActionList.update({ACTPAYUPKEEP: 'No Theaters', ACTCLOSETHEATER: 'No Theaters', ACTSELLTHEATER: 'No Theaters'})
 
-            if self.turnStatus.get(EMPLOYEESPAID):
+            if self.yearStatus.get(EMPLOYEESPAID):
                 invalidActionList.update({ACTPAYSALARIES: 'Already Paid', ACTFIREEMPLOY: 'Already Paid'})
-            if self.turnStatus.get(UPKEEPPAID):
+            if self.yearStatus.get(UPKEEPPAID):
                 invalidActionList.update({ACTCLOSETHEATER: 'Already Paid', ACTPAYUPKEEP: 'Already Paid'})
 
             # CONSTRUCTION PHASE
-            if self.turnStatus.get(THEATERBOUGHT):
+            if self.phaseStatus.get(THEATERBOUGHT):
                 invalidActionList.update({ACTBUILDTHEATER: 'Already bought this phase.'})
 
             # ACTION PHASE
@@ -210,24 +228,61 @@ class Player:
             elif Game.board.employmentOffice.countCards() == 0:
                 invalidActionList[ACTHIREOFFICE] = 'No Employees Available'
 
+            # PRIVATE BOOKING PHASE
+            tmpScreens = False
+            for i in self.theaterStack.cards:
+                if i.movies.countCards() < i.screens:
+                    tmpScreens = True
+            if tmpScreens == False:
+                invalidActionList[ACTPRIVATEBOOK] = 'No Screens Available'
+            if len(self.theaterStack.cards) == 0:
+                invalidActionList[ACTPRIVATEBOOK] = 'No Private Theater'
+
         return invalidActionList
+    def _determineFreeOptions(self, actionList):
+        freeActionList = {}
+        for currAction in actionList:
+            if currAction in ACTFREEACTIONS:
+                freeActionList.update({currAction: 'Free'})
+            if currAction == ACTPHASESKIP:
+                freeActionList.update({ACTPHASESKIP: 'Free'})
+        return freeActionList
 
     # Action methods
     def doUpkeepPhase(self):
-        self.turnStatus = {}
+        self.yearStatus = {}
 
-        availableActions = UPKPHASEACTIONS + [ACTPHASESKIP]
+        phaseActions = UPKPHASEACTIONS + [ACTPHASESKIP]
+        availableActions = phaseActions
 
         while availableActions != []:
+            availableActions = self._addFreeActions(phaseActions)
             self._updateEmployeeStack()
 
             action = self._choiceUpkeepPhase(availableActions)
             Output.updateScreen()
 
-            if action == ACTPAYSALARIES:
+            if action == ACTCLAIMSCRIPTS:
+                for i in self.writerStack.cards:
+                    if i.type == ORDINARYWRITER:
+                        while True:
+                            currGenre = Dice.genreDie.roll()
+                            if Game.board.scriptDecks[i].countCards() > 0:
+                                self.scriptStack.addCards(Game.board.scriptDecks[i].drawCards(names=currScriptName))
+                                self.scriptStack.flipAll(FACEUP)
+                                break
+                    else:
+                        currScriptName = self._choiceBuyScriptChoose()[0]
+                        for i in GENRES:
+                            if Game.board.scriptDecks[i].cards[0].name == currScriptName:
+                                self.scriptStack.addCards(Game.board.scriptDecks[i].drawCards(names=currScriptName))
+                                self.scriptStack.flipAll(FACEUP)
+                self.yearStatus[SCRIPTSCLAIMED] = True
+
+            elif action == ACTPAYSALARIES:
                 if self._choiceUpkeepPaySalariesYN() == YES:
                     self._delMoney(self._countSalaries())
-                    self.turnStatus[EMPLOYEESPAID] = True
+                    self.yearStatus[EMPLOYEESPAID] = True
 
             elif action == ACTFIREEMPLOY:
                 for currEmployeeName in self._choiceUpkeepFireEmployee():
@@ -247,7 +302,7 @@ class Player:
             elif action == ACTPAYUPKEEP:
                 if self._choiceUpkeepPayUpkeepYN() == YES:
                     self._delMoney(self._countUpkeep())
-                    self.turnStatus[UPKEEPPAID] = True
+                    self.yearStatus[UPKEEPPAID] = True
                 else:
                     action = ACTCLOSETHEATER
 
@@ -271,24 +326,30 @@ class Player:
 
         return True
     def doConstructionPhase(self):
-        availableActions = CONPHASEACTIONS + [ACTPHASESKIP]
+        self.phaseStatus = {}
+
+        phaseActions = CONPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
+        availableActions = phaseActions
 
         while availableActions != []:
+            availableActions = self._addFreeActions(phaseActions)
             action = self._choiceConstructionPhase(availableActions)
             Output.updateScreen()
             if action == ACTBUILDTHEATER:
                 if self._choiceBuildTheaterYN() == YES:
                     self._delMoney(THEATERCOST)
                     self.theaterStack.addCards(Cards.Deck([Cards.Theater(type=PRIVATE, screens=3, status=OPEN)]))
-                    self.turnStatus[THEATERBOUGHT] = True
+                    self.phaseStatus[THEATERBOUGHT] = True
             elif action == ACTPHASESKIP:
                 return True
             Output.updateScreen()
         return True
     def doActionPhase(self):
-        availableActions = ACTPHASEACTIONS
+        phaseActions = ACTPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
+        availableActions = phaseActions
 
         while availableActions != []:
+            availableActions = self._addFreeActions(phaseActions)
             action = self._choiceActionPhase(availableActions)
             Output.updateScreen()
 
@@ -300,6 +361,8 @@ class Player:
                             self._delMoney(SCRIPTCOST)
                             self.scriptStack.addCards(Game.board.scriptDecks[i].drawCards(names=currScriptName))
                             self.scriptStack.flipAll(FACEUP)
+
+                            Output.updateScreen()
                             return True
 
             elif action == ACTDRAWACTOR:
@@ -309,6 +372,8 @@ class Player:
                         self.actorStack.addCards(tmpHand)
                     else:
                         Game.board.employmentOffice.addCards(tmpHand)
+
+                    Output.updateScreen()
                     return True
 
             elif action == ACTDRAWCRAFT:
@@ -323,6 +388,8 @@ class Player:
                             self.crewStack.addCards(tmpHand)
                     else:
                         Game.board.employmentOffice.addCards(tmpHand)
+
+                    Output.updateScreen()
                     return True
 
             elif action == ACTHIREOFFICE:
@@ -337,6 +404,8 @@ class Player:
                         self.crewStack.addCards(tmpHand)
                     elif tmpHand.cards[0].cardType == ACTORCARD:
                         self.actorStack.addCards(tmpHand)
+
+                    Output.updateScreen()
                     return True
 
             elif action == ACTPUBLICBOOK:
@@ -361,6 +430,8 @@ class Player:
                                 self._delMoney(1000)
                                 self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
                                 Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+
+                                Output.updateScreen()
                                 return True
                         else:
                             self.scriptStack.addCards(tmpMovie.scriptStack)
@@ -373,13 +444,17 @@ class Player:
                     Output.printToWindow('NO VALID SCRIPTS', Output.menuWindow)
 
             elif action == ACTPHASESKIP:
+                Output.updateScreen()
                 return True
-            Output.updateScreen()
+
+        Output.updateScreen()
         return True
     def doPrivateBookingPhase(self):
-        availableActions = PVTPHASEACTIONS + [ACTPHASESKIP]
+        phaseActions = PVTPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
+        availableActions = phaseActions
 
         while availableActions != []:
+            availableActions = self._addFreeActions(phaseActions)
             action = self._choicePrivateBookingPhase(availableActions)
             Output.updateScreen()
             if action == ACTPRIVATEBOOK:
@@ -404,6 +479,8 @@ class Player:
                                 if i.bookMovie(Cards.Deck([tmpMovie])):
                                     self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
                                     Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+
+                                    Output.updateScreen()
                                     return True
                         else:
                             self.scriptStack.addCards(tmpMovie.scriptStack)
@@ -414,5 +491,8 @@ class Player:
                         Output.printToWindow('NO DIRECTORS AVAILABLE', Output.menuWindow)
                 else:
                     Output.printToWindow('NO VALID SCRIPTS', Output.menuWindow)
-
+            elif action == ACTPHASESKIP:
+                Output.updateScreen()
+                return True
+        Output.updateScreen()
         return True
