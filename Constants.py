@@ -12,6 +12,9 @@ THEATERSALE	= 5000
 
 SCRIPTCOST	= 1000
 
+AMOVIE = 1
+BMOVIE = 0
+
 """ Theater Status """
 PUBLIC		= 0
 PRIVATE		= 1

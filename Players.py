@@ -3,49 +3,6 @@ from collections import Counter, OrderedDict
 import Cards, Game, Output
 from Constants import *
 
-# def getChoiceFromList(prompt, list, noChoices=1):
-#     print prompt
-#     count = 1
-#     indexMapping = {}
-#     for i, currOption in enumerate(list):
-#         print '{0:2d} - {1}'.format(count, currOption)
-#         indexMapping[count] = currOption
-#         count += 1
-#     if noChoices > 1:
-#         chosenOption = []
-#     else:
-#         chosenOption = None
-#     while True:
-#         for i in range(0, noChoices):
-#             choice = input('%d of %d :'%(i, noChoices))
-#             if choice >= 1 and choice <= len(list):
-#                 if choice in indexMapping:
-#                     if noChoices > 1:
-#                         chosenOption.append(indexMapping[int(choice)])
-#                     else:
-#                         chosenOption = indexMapping[int(choice)]
-#         if chosenOption:
-#             return chosenOption
-# def getChoiceFromStack(prompt, currStack, noChoices=1):
-#     print prompt
-#     count = 1
-#     indexMapping = {}
-#     for i, currCard in enumerate(currStack.cards):
-#         print '{0:2d} - {1}'.format(count, currCard.visibleName())
-#         indexMapping[count] = currCard.name
-#         count += 1
-#     chosenCard = []
-
-#     for i in range(0, noChoices):
-#         choice = input('%d of %d :'%(i, noChoices))
-#         if choice >= 1 and choice <= len(currStack.cards):
-#             if choice in indexMapping:
-#                 chosenCard.append(indexMapping[choice])
-#     if chosenCard:
-#         return chosenCard
-#     else:
-#         return False
-
 def getChoiceFromList(player, prompt, list, noChoices=1):
     Output.menuWindow.clear()
     Output.printToWindow(prompt + '\n', Output.menuWindow)
@@ -76,7 +33,7 @@ def getChoiceFromList(player, prompt, list, noChoices=1):
                         chosenOption.append(indexMapping[int(choice)])
                     else:
                         chosenOption = indexMapping[int(choice)]
-        if chosenOption:
+        if len(chosenOption) > 0:
             return chosenOption
 def getChoiceFromStack(prompt, currStack, noChoices=1):
     Output.menuWindow.clear()
@@ -90,17 +47,16 @@ def getChoiceFromStack(prompt, currStack, noChoices=1):
         count += 1
     chosenCard = []
 
-    for i in range(0, noChoices):
-        Output.printToWindow('%d of %d : '%(i, noChoices), Output.menuWindow)
-        choice = Output.menuWindow.getch()
-        choice -= 48
-        if choice >= 1 and choice <= len(currStack.cards):
-            if choice in indexMapping:
-                chosenCard.append(indexMapping[choice])
-    if chosenCard:
-        return chosenCard
-    else:
-        return False
+    while True:
+        for i in range(0, noChoices):
+            Output.printToWindow('%d of %d : '%(i, noChoices), Output.menuWindow)
+            choice = Output.menuWindow.getch()
+            choice -= 48
+            if choice >= 1 and choice <= len(currStack.cards):
+                if choice in indexMapping:
+                    chosenCard.append(indexMapping[choice])
+        if len(chosenCard) > 0:
+            return chosenCard
 
 class Player:
     def __init__(self, name):
@@ -212,6 +168,8 @@ class Player:
         return getChoiceFromList(self, 'HIRE %s?'%(employee), MENUYESNO)
     def _choiceScriptPublicBook(self, scripts):
         return getChoiceFromStack('BOOK A MOVIE?', scripts)
+    def _choiceAorBMovie(self, script):
+        return getChoiceFromList(self, 'BOOK %s AS AN A-MOVIE ($%d) OR B-MOVIE ($%d)?'%(script.visibleName(), script.budgetA, script.budgetB), ["A-MOVIE", "B-MOVIE"])
     def _choiceSelectActors(self, script):
         tmpActorNames = getChoiceFromStack('CHOOSE ACTORS - %s'%script.actors, self.actorStack, noChoices=len(script.actors))
         if self._checkValidScript(script, self.actorStack.copyCards(names=tmpActorNames)):
@@ -392,9 +350,15 @@ class Player:
                         tmpActors = self._choiceSelectActors(tmpMovie.scriptStack.cards[0])
                         if tmpActors:
                             tmpMovie.actorStack.addCards(self.actorStack.drawCards(names=tmpActors))
-                            if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
-                                Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
-                                return True
+                            tmpType = self._choiceAorBMovie(tmpMovie.scriptStack.cards[0])
+                            if tmpType == "A-MOVIE":    tmpMovie.type = AMOVIE
+                            elif tmpType == "B-MOVIE":  tmpMovie.type = BMOVIE
+                            # if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
+                            #     Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                            #     return True
+                            self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
+                            Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                            return True
                         else:
                             self.scriptStack.addCards(tmpMovie.scriptStack)
                             self.directorStack.addCards(tmpMovie.directorStack)

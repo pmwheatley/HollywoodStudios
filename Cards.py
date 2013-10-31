@@ -254,7 +254,7 @@ class WriterCard(Card):
 
 class Movie(Card):
     def __init__(self, name):
-        self.type = 0
+        self.type = None
         self.name = name
         self.bonus = 0
         self.scriptStack = Deck([])
@@ -271,28 +271,28 @@ class Movie(Card):
     def calcBonus(self):
         if self.rerun == False:
             bonusTotal = 1  # FREE REIN 50% of time?
-            for currScript in self.scriptStack.getCards():
+            for currScript in self.scriptStack.cards:
                 if self.type == 0:
                     bonusTotal += currScript.bonusB
                 else:
                     bonusTotal += currScript.bonusA
-            for currCrew in self.crewStack.getCards():
+            for currCrew in self.crewStack.cards:
                 if currCrew.type == GOODCREW:
                     bonusTotal += 1
                 elif currCrew.type == EXCELLENTCREW:
                     bonusTotal += 2
-            for currDirector in self.directorStack.getCards():
-                currScript = self.scriptStack.getCard(self.name)
+            for currDirector in self.directorStack.cards:
+                currScript = self.scriptStack.cards[0]
                 currGenre = currScript.genre
-                bonusTotal += currDirector.bonus[GENRES.index(currGenre)]
-            for currActor in self.actorStack.getCards():
+                bonusTotal += currDirector.bonus[currGenre]
+            for currActor in self.actorStack.cards:
                 if currActor.status == UNKNOWN:
                     bonusTotal += currActor.bonus[0][1]
                 elif currActor.status == STAR:
                     bonusTotal += currActor.bonus[1][1]
             self.bonus = bonusTotal
         else:
-            for currScript in self.scriptStack.getCards():
+            for currScript in self.scriptStack.cards:
                 self.bonus = currScript.bonusB
         return
     def calcBoxOffice(self):
@@ -303,6 +303,11 @@ class Movie(Card):
             boxOfficeTotal += boxOfficeDie[self.type].roll()
         self.boxOffice = boxOfficeTotal
         return self.boxOffice
+    def visibleName(self):
+        if self.type == AMOVIE: outType = "A"
+        else:                   outType = "B"
+        self.calcBonus()
+        return '[%s] - %s - (%d)'%(outType, self.name, self.bonus)
 
 class Theater(Card):
     def __init__(self, type=PRIVATE, screens=3, status=OPEN):
