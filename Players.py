@@ -261,15 +261,12 @@ class Player:
     # Action methods
     def doUpkeepPhase(self):
         self.yearStatus = {}
-
         phaseActions = UPKPHASEACTIONS + [ACTPHASESKIP]
         availableActions = []
 
         while True:
             availableActions = phaseActions + self._addFreeActions()
-            Output.printToLog(str(availableActions))
             self._updateEmployeeStack()
-
             action = self._choiceUpkeepPhase(availableActions)
             Output.updateScreen()
 
@@ -341,15 +338,14 @@ class Player:
         return True
     def doConstructionPhase(self):
         self.phaseStatus = {}
-
         phaseActions = CONPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
         availableActions = []
 
-        while availableActions != []:
+        while True:
             availableActions = phaseActions + self._addFreeActions()
-            Output.printToLog(str(availableActions))
             action = self._choiceConstructionPhase(availableActions)
             Output.updateScreen()
+
             if action == ACTBUILDTHEATER:
                 if self._choiceBuildTheaterYN() == YES:
                     self._delMoney(THEATERCOST)
@@ -363,9 +359,8 @@ class Player:
         phaseActions = ACTPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
         availableActions = []
 
-        while availableActions != []:
+        while True:
             availableActions = phaseActions + self._addFreeActions()
-            Output.printToLog(str(availableActions))
             action = self._choiceActionPhase(availableActions)
             Output.updateScreen()
 
@@ -469,11 +464,11 @@ class Player:
         phaseActions = PVTPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
         availableActions = []
 
-        while availableActions != []:
+        while True:
             availableActions = phaseActions + self._addFreeActions()
-            Output.printToLog(str(availableActions))
             action = self._choicePrivateBookingPhase(availableActions)
             Output.updateScreen()
+
             if action == ACTPRIVATEBOOK:
                 validScripts = []
                 for i in self.scriptStack.cards:
