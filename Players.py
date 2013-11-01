@@ -291,6 +291,191 @@ class Player:
         elif action == ACTTRADE1STAT:
             self.statuettes -= 1
         return True
+    # Book a movie
+    def doBookMovie(self, theatre=PUBLIC):
+            validScripts = []
+            for i in self.scriptStack.cards:
+                if self._checkValidScript(i, self.actorStack):
+                    validScripts.append(i)
+            if len(validScripts) > 0:
+                currScriptName = self._choiceScriptBook(Cards.Deck(validScripts))[0]
+                if self.directorStack.countCards() > 0:
+                    tmpMovie = Cards.Movie(currScriptName)
+                    tmpMovie.scriptStack = self.scriptStack.drawCards(names=currScriptName)
+                    tmpDirector = self._choiceSelectDirector()
+                    tmpMovie.directorStack.addCards(self.directorStack.drawCards(names=tmpDirector))
+                    tmpActors = self._choiceSelectActors(tmpMovie.scriptStack.cards[0])
+                    if tmpActors:
+                        tmpMovie.actorStack.addCards(self.actorStack.drawCards(names=tmpActors))
+
+                        tmpMovie = self._applyAbilitiesBooking(tmpMovie)
+
+                        if theatre == PUBLIC:
+                            if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
+                                # Pay movie budget
+                                self._delMoney(tmpMovie.budget)
+                                # ABILITIES - FREEPUBLICBOOK
+                                if FREEPUBLICBOOK not in self.abilities:
+                                    self._delMoney(1000)
+                                self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
+                                Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                                Output.updateScreen()
+                                # ABILITIES - BLOCKBOOKING
+                                if BLOCKBOOKING not in self.abilities:
+                                    return True
+                        elif theatre == PRIVATE:
+                            for i in self.theaterStack.cards:
+                                if i.bookMovie(Cards.Deck([tmpMovie])):
+                                    # Pay movie budget
+                                    self._delMoney(tmpMovie.budget)
+                                    # ABILITIES - FREEPUBLICBOOK
+                                    if FREEPUBLICBOOK not in self.abilities:
+                                        self._delMoney(1000)
+                                    self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
+                                    Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                                    Output.updateScreen()
+                                    # ABILITIES - BLOCKBOOKING
+                                    if BLOCKBOOKING not in self.abilities:
+                                        return True
+                    else:
+                        self.scriptStack.addCards(tmpMovie.scriptStack)
+                        self.directorStack.addCards(tmpMovie.directorStack)
+                        self.actorStack.addCards(tmpMovie.actorStack)
+                        Output.printToWindow('INVALID SELECTION', Output.menuWindow)
+                else:
+                    Output.printToWindow('NO DIRECTORS AVAILABLE', Output.menuWindow)
+            else:
+                Output.printToWindow('NO VALID SCRIPTS', Output.menuWindow)
+
+    # Director / Studio Abilities
+    def _applyAbilitiesBooking(self, movie):
+
+        currGenre = movie.scriptStack.cards[0].genre
+        currDirector = movie.directorStack.cards[0]
+
+        # ABILITIES - MUSTFREEREIGN CANTFREEREIGN
+        if MUSTFREEREIGN in self.abilities:
+            movie.freeReign = True
+        elif CANTFREEREIGN in self.abilities:
+            movie.freeReign = False
+        else:
+            freeReign = self._choiceDirectorFreeReign(currDirector.name)
+            if freeReign == "Y":        movie.freeReign = True
+            elif freeReign == "N":      movie.freeReign = False
+
+        # ABILITIES - AMOVIESONLY BMOVIESONLY
+        if AMOVIESONLY in self.abilities:
+            movie.type = AMOVIE
+        elif BMOVIESONLY in self.abilities:
+            movie.type = BMOVIE
+        else:
+            tmpType = self._choiceAorBMovie(movie.scriptStack.cards[0])
+            if tmpType == "A-MOVIE":    movie.type = AMOVIE
+            elif tmpType == "B-MOVIE":  movie.type = BMOVIE
+
+        # ABILITIES - BMOVIEPOLISH
+        if movie.type == BMOVIE and BMOVIEPOLISH in self.abilities:
+            tmpPolish = self._choicePolishMovie()
+
+            if tmpPolish == "Y":
+                self._delMoney(2000)
+                movie.polished = True
+
+        # ABILITIES - ALLMOVIEBONUS AMOVIEBONUS BMOVIEBONUS
+        if ALLMOVIEBONUS in self.abilities:
+            movie.initBonus += self.abilities[ALLMOVIEBONUS]
+        if ALLMOVIEBONUS in currDirector.abilities:
+            movie.initBonus += currDirector.abilities[ALLMOVIEBONUS]
+
+        if movie.type == AMOVIE:
+            if AMOVIEBONUS in self.abilities:
+                movie.initBonus += self.abilities[AMOVIEBONUS]
+            if AMOVIEBONUS in currDirector.abilities:
+                movie.initBonus += currDirector.abilities[AMOVIEBONUS]
+        elif movie.type == BMOVIE:
+            if BMOVIEBONUS in self.abilities:
+                movie.initBonus += self.abilities[BMOVIEBONUS]
+            if BMOVIEBONUS in currDirector.abilities:
+                movie.initBonus += currDirector.abilities[BMOVIEBONUS]
+
+        # ABILITIES - FILMNOIRBONUS  ROMANCEBONUS  HORRORBONUS  COMEDYBONUS  EPICBONUS  SWORDSBONUS
+        if currGenre == FILMNOIR:
+            if FILMNOIRBONUS in self.abilities:
+                movie.initBonus += self.abilities[FILMNOIRBONUS]
+            if FILMNOIRBONUS in currDirector.abilities:
+                movie.initBonus += currDirector.abilities[FILMNOIRBONUS]
+        elif currGenre == ROMANCE:
+            if ROMANCEBONUS in self.abilities:
+                movie.initBonus += self.abilities[ROMANCEBONUS]
+            if ROMANCEBONUS in currDirector.abilities:
+                movie.initBonus += currDirector.abilities[ROMANCEBONUS]
+        elif currGenre == HORROR:
+            if HORRORBONUS in self.abilities:
+                movie.initBonus += self.abilities[HORRORBONUS]
+            if HORRORBONUS in currDirector.abilities:
+                movie.initBonus += currDirector.abilities[HORRORBONUS]
+        elif currGenre == COMEDY :
+            if COMEDYBONUS in self.abilities:
+                movie.initBonus += self.abilities[COMEDYBONUS]
+            if COMEDYBONUS in currDirector.abilities:
+                movie.initBonus += currDirector.abilities[COMEDYBONUS]
+        elif currGenre == EPIC:
+            if EPICBONUS in self.abilities:
+                movie.initBonus += self.abilities[EPICBONUS]
+            if EPICBONUS in currDirector.abilities:
+                movie.initBonus += currDirector.abilities[EPICBONUS]
+        elif currGenre == SWORDS:
+            if SWORDSBONUS in self.abilities:
+                movie.initBonus += self.abilities[SWORDSBONUS]
+            if SWORDSBONUS in currDirector.abilities:
+                movie.initBonus += currDirector.abilities[SWORDSBONUS]
+
+        # ABILITIES - AMOVIEEXTRACOST BMOVIEEXTRACOST
+        movie.calcBudget()
+        if movie.type == AMOVIE:
+            if AMOVIEEXTRACOST in self.abilities:
+                movie.budget += self.abilities[AMOVIEEXTRACOST]
+            if AMOVIEEXTRACOST in currDirector.abilities:
+                movie.budget += currDirector.abilities[AMOVIEEXTRACOST]
+        if movie.type == BMOVIE:
+            if BMOVIEEXTRACOST in self.abilities:
+                movie.budget += self.abilities[BMOVIEEXTRACOST]
+            if BMOVIEEXTRACOST in currDirector.abilities:
+                movie.budget += currDirector.abilities[BMOVIEEXTRACOST]
+
+        # ABILITIES - ROLLOSCAR
+        tmpDie = Dice.Die(3, [1,2,3])
+        if ROLLOSCAR in self.abilities or ROLLOSCAR in currDirector.abilities:
+            if tmpDie.roll() == 1:
+                movie.scriptStack.cards[0].instantClassic = True
+
+        # ABILITIES - FILMNOIRROLLCLASSIC ROMANCEROLLCLASSIC  HORRORROLLCLASSIC  COMEDYROLLCLASSIC  EPICROLLCLASSIC  SWORDSROLLCLASSIC
+        if currGenre == FILMNOIR:
+            if FILMNOIRROLLCLASSIC in self.abilities or FILMNOIRROLLCLASSIC in currDirector.abilities:
+                if tmpDie.roll() == 1:
+                    movie.scriptStack.cards[0].instantClassic = True
+        elif currGenre == ROMANCE:
+            if ROMANCEROLLCLASSIC in self.abilities or ROMANCEROLLCLASSIC in currDirector.abilities:
+                if tmpDie.roll() == 1:
+                    movie.scriptStack.cards[0].instantClassic = True
+        elif currGenre == HORROR:
+            if HORRORROLLCLASSIC in self.abilities or HORRORROLLCLASSIC in currDirector.abilities:
+                if tmpDie.roll() == 1:
+                    movie.scriptStack.cards[0].instantClassic = True
+        elif currGenre == COMEDY :
+            if COMEDYROLLCLASSIC in self.abilities or COMEDYROLLCLASSIC in currDirector.abilities:
+                if tmpDie.roll() == 1:
+                    movie.scriptStack.cards[0].instantClassic = True
+        elif currGenre == EPIC:
+            if EPICROLLCLASSIC in self.abilities or EPICROLLCLASSIC in currDirector.abilities:
+                if tmpDie.roll() == 1:
+                    movie.scriptStack.cards[0].instantClassic = True
+        elif currGenre == SWORDS:
+            if SWORDSROLLCLASSIC in self.abilities or SWORDSROLLCLASSIC in currDirector.abilities:
+                if tmpDie.roll() == 1:
+                    movie.scriptStack.cards[0].instantClassic = True
+
+        return movie
 
     # Action methods
     def doUpkeepPhase(self):
@@ -322,6 +507,16 @@ class Player:
                             if Game.board.scriptDecks[currGenre].cards[0].name == currScriptName:
                                 self.scriptStack.addCards(Game.board.scriptDecks[currGenre].drawCards(names=currScriptName))
                                 self.scriptStack.flipAll(FACEUP)
+
+                # ABILITIES - ALSOWRITER
+                for currDirector in self.directorStack.cards:
+                    if ALSOWRITER in currDirector.abilities:
+                        currScriptName = self._choiceBuyScriptChoose()[0]
+                        for currGenre in GENRES:
+                            if Game.board.scriptDecks[currGenre].cards[0].name == currScriptName:
+                                self.scriptStack.addCards(Game.board.scriptDecks[currGenre].drawCards(names=currScriptName))
+                                self.scriptStack.flipAll(FACEUP)
+
                 self.yearStatus[SCRIPTSCLAIMED] = True
 
             elif action == ACTPAYSALARIES:
@@ -454,72 +649,7 @@ class Player:
                     return True
 
             elif action == ACTPUBLICBOOK:
-                validScripts = []
-                for i in self.scriptStack.cards:
-                    if self._checkValidScript(i, self.actorStack):
-                        validScripts.append(i)
-                if len(validScripts) > 0:
-                    currScriptName = self._choiceScriptBook(Cards.Deck(validScripts))[0]
-                    if self.directorStack.countCards() > 0:
-                        tmpMovie = Cards.Movie(currScriptName)
-                        tmpMovie.scriptStack = self.scriptStack.drawCards(names=currScriptName)
-                        tmpDirector = self._choiceSelectDirector()
-                        tmpMovie.directorStack.addCards(self.directorStack.drawCards(names=tmpDirector))
-                        tmpActors = self._choiceSelectActors(tmpMovie.scriptStack.cards[0])
-                        if tmpActors:
-                            tmpMovie.actorStack.addCards(self.actorStack.drawCards(names=tmpActors))
-
-                            # ABILITIES - MUSTFREEREIGN CANTFREEREIGN
-                            if MUSTFREEREIGN in self.abilities:
-                                tmpMovie.freeReign = True
-                            elif CANTFREEREIGN in self.abilities:
-                                tmpMovie.freeReign = False
-                            else:
-                                freeReign = self._choiceDirectorFreeReign(tmpDirector)
-                                if freeReign == "Y":        tmpMovie.freeReign = True
-                                elif freeReign == "N":      tmpMovie.freeReign = False
-
-                            # ABILITIES - AMOVIESONLY BMOVIESONLY
-                            if AMOVIESONLY in self.abilities:
-                                tmpMovie.type = AMOVIE
-                            elif BMOVIESONLY in self.abilities:
-                                tmpMovie.type = BMOVIE
-                            else:
-                                tmpType = self._choiceAorBMovie(tmpMovie.scriptStack.cards[0])
-                                if tmpType == "A-MOVIE":    tmpMovie.type = AMOVIE
-                                elif tmpType == "B-MOVIE":  tmpMovie.type = BMOVIE
-
-                            # ABILITIES - BMOVIEPOLISH
-                            if tmpType == "B-MOVIE" and BMOVIEPOLISH in self.abilities:
-                                tmpPolish = self._choicePolishMovie()
-
-                                if tmpPolish == "Y":
-                                    self._delMoney(2000)
-                                    tmpMovie.polished = True
-
-                            if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
-
-                                # ABILITIES - FREEPUBLICBOOK
-                                if FREEPUBLICBOOK not in self.abilities:
-                                    self._delMoney(1000)
-
-                                self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
-                                Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
-
-                                Output.updateScreen()
-
-                                # ABILITIES - BLOCKBOOKING
-                                if BLOCKBOOKING not in self.abilities:
-                                    return True
-                        else:
-                            self.scriptStack.addCards(tmpMovie.scriptStack)
-                            self.directorStack.addCards(tmpMovie.directorStack)
-                            self.actorStack.addCards(tmpMovie.actorStack)
-                            Output.printToWindow('INVALID SELECTION', Output.menuWindow)
-                    else:
-                        Output.printToWindow('NO DIRECTORS AVAILABLE', Output.menuWindow)
-                else:
-                    Output.printToWindow('NO VALID SCRIPTS', Output.menuWindow)
+                self.doBookMovie(PUBLIC)
 
             elif action == ACTPHASESKIP:
                 Output.updateScreen()
@@ -537,39 +667,8 @@ class Player:
             Output.updateScreen()
 
             if action == ACTPRIVATEBOOK:
-                validScripts = []
-                for i in self.scriptStack.cards:
-                    if self._checkValidScript(i, self.actorStack):
-                        validScripts.append(i)
-                if len(validScripts) > 0:
-                    currScriptName = self._choiceScriptBook(Cards.Deck(validScripts))[0]
-                    if self.directorStack.countCards() > 0:
-                        tmpMovie = Cards.Movie(currScriptName)
-                        tmpMovie.scriptStack = self.scriptStack.drawCards(names=currScriptName)
-                        tmpDirector = self._choiceSelectDirector()
-                        tmpMovie.directorStack.addCards(self.directorStack.drawCards(names=tmpDirector))
-                        tmpActors = self._choiceSelectActors(tmpMovie.scriptStack.cards[0])
-                        if tmpActors:
-                            tmpMovie.actorStack.addCards(self.actorStack.drawCards(names=tmpActors))
-                            tmpType = self._choiceAorBMovie(tmpMovie.scriptStack.cards[0])
-                            if tmpType == "A-MOVIE":    tmpMovie.type = AMOVIE
-                            elif tmpType == "B-MOVIE":  tmpMovie.type = BMOVIE
-                            for i in self.theaterStack.cards:
-                                if i.bookMovie(Cards.Deck([tmpMovie])):
-                                    self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
-                                    Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                self.doBookMovie(PRIVATE)
 
-                                    Output.updateScreen()
-                                    return True
-                        else:
-                            self.scriptStack.addCards(tmpMovie.scriptStack)
-                            self.directorStack.addCards(tmpMovie.directorStack)
-                            self.actorStack.addCards(tmpMovie.actorStack)
-                            Output.printToWindow('INVALID SELECTION', Output.menuWindow)
-                    else:
-                        Output.printToWindow('NO DIRECTORS AVAILABLE', Output.menuWindow)
-                else:
-                    Output.printToWindow('NO VALID SCRIPTS', Output.menuWindow)
             elif action == ACTPHASESKIP:
                 Output.updateScreen()
                 return True

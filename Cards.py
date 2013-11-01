@@ -267,10 +267,16 @@ class Movie(Card):
         self.rerun = False
         self.freeReign = False
         self.polished = False
+        self.budget = 0
     def getName(self, type=False):
         self.calcBonus()
         if self.scriptStack.countCards > 0:
             return self.scriptStack.cards[0].getName(type) + ' [' + str(self.bonus) + ']'
+    def calcBudget(self):
+        if self.type == BMOVIE:
+            self.budget = self.scriptStack.cards[0].budgetB
+        elif self.type == AMOVIE:
+            self.budget = self.scriptStack.cards[0].budgetA
     def calcBonus(self):
         if self.rerun == False:
             self.currBonus = self.initBonus
@@ -278,7 +284,7 @@ class Movie(Card):
                 self.currBonus += 2
             for currScript in self.scriptStack.cards:
                 # ABILITIES - BMOVIEPOLISH
-                if self.type == 0 and self.polished = False:
+                if self.type == 0 and self.polished == False:
                     self.currBonus += currScript.bonusB
                 else:
                     self.currBonus += currScript.bonusA
@@ -288,8 +294,7 @@ class Movie(Card):
                 elif currCrew.type == EXCELLENTCREW:
                     self.currBonus += 2
             for currDirector in self.directorStack.cards:
-                currScript = self.scriptStack.cards[0]
-                currGenre = currScript.genre
+                currGenre = self.scriptStack.cards[0].genre
                 self.currBonus += currDirector.bonus[currGenre]
             for currActor in self.actorStack.cards:
                 if currActor.status == UNKNOWN:
@@ -312,7 +317,7 @@ class Movie(Card):
         if self.type == AMOVIE: outType = "A"
         else:                   outType = "B"
         self.calcBonus()
-        return '[%s] - %s - (%d)'%(outType, self.name, self.bonus)
+        return '[%s] - %s - (%d)'%(outType, self.name, self.currBonus)
 
 class Theater(Card):
     def __init__(self, type=PRIVATE, screens=3, status=OPEN):

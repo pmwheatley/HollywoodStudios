@@ -5,7 +5,7 @@ from Constants import *
 
 Output.initOutput()
 
-Player1 = Players.Player("Phil", UNI)
+Player1 = Players.Player("Phil", MGM)
 
 Game.board = Game.Board([Player1])
 
@@ -20,7 +20,6 @@ for i in range(0,9):
     Player1.doConstructionPhase()
     Player1.doActionPhase()
     Player1.doPrivateBookingPhase()
-
 
 Output.killOutput()
 
