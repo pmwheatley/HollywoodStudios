@@ -5,8 +5,7 @@ from Constants import *
 
 Output.initOutput()
 
-Player1 = Players.Player("Phil")
-Player1.studio = MGM
+Player1 = Players.Player("Phil", UNI)
 
 Game.board = Game.Board([Player1])
 
@@ -14,7 +13,7 @@ Output.updateScreen()
 
 Player1.doUpkeepPhase()
 
-for i in [1,2,3]:
+for i in range(0,9):
 
     Output.updateScreen()
 

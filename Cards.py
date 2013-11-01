@@ -182,7 +182,7 @@ class DirectorCard(Card):
         self.name = name
         self.salary = salary
         self.bonus = bonus
-        self.ability = ability
+        self.abilities = ability
         self.cardType = DIRECTORCARD
         self.face = FACEUP
     def getBonus(self, genre):
@@ -256,7 +256,8 @@ class Movie(Card):
     def __init__(self, name):
         self.type = None
         self.name = name
-        self.bonus = 0
+        self.initBonus = 0
+        self.currBonus = 0
         self.scriptStack = Deck([])
         self.actorStack = Deck([])
         self.directorStack = Deck([])
@@ -264,36 +265,40 @@ class Movie(Card):
         self.boxOffice = 0
         self.genre = None
         self.rerun = False
+        self.freeReign = False
+        self.polished = False
     def getName(self, type=False):
         self.calcBonus()
         if self.scriptStack.countCards > 0:
             return self.scriptStack.cards[0].getName(type) + ' [' + str(self.bonus) + ']'
     def calcBonus(self):
         if self.rerun == False:
-            bonusTotal = 1  # FREE REIN 50% of time?
+            self.currBonus = self.initBonus
+            if self.freeReign == True:
+                self.currBonus += 2
             for currScript in self.scriptStack.cards:
-                if self.type == 0:
-                    bonusTotal += currScript.bonusB
+                # ABILITIES - BMOVIEPOLISH
+                if self.type == 0 and self.polished = False:
+                    self.currBonus += currScript.bonusB
                 else:
-                    bonusTotal += currScript.bonusA
+                    self.currBonus += currScript.bonusA
             for currCrew in self.crewStack.cards:
                 if currCrew.type == GOODCREW:
-                    bonusTotal += 1
+                    self.currBonus += 1
                 elif currCrew.type == EXCELLENTCREW:
-                    bonusTotal += 2
+                    self.currBonus += 2
             for currDirector in self.directorStack.cards:
                 currScript = self.scriptStack.cards[0]
                 currGenre = currScript.genre
-                bonusTotal += currDirector.bonus[currGenre]
+                self.currBonus += currDirector.bonus[currGenre]
             for currActor in self.actorStack.cards:
                 if currActor.status == UNKNOWN:
-                    bonusTotal += currActor.bonus[0][1]
+                    self.currBonus += currActor.bonus[0][1]
                 elif currActor.status == STAR:
-                    bonusTotal += currActor.bonus[1][1]
-            self.bonus = bonusTotal
+                    self.currBonus += currActor.bonus[1][1]
         else:
             for currScript in self.scriptStack.cards:
-                self.bonus = currScript.bonusB
+                self.currBonus = self.initBonus + currScript.bonusB
         return
     def calcBoxOffice(self):
         global boxOfficeDie

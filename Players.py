@@ -16,7 +16,7 @@ def getChoiceFromList(player, prompt, list, noChoices=1):
         if currOption in invalidActions.keys():
             Output.printToWindow('{0:2d} - {1} - {2}\n'.format(count, currOption, invalidActions.get(currOption)), Output.menuWindow, colorPair=1)
         elif currOption in freeActions.keys():
-            Output.printToWindow('{0:2d} - {1}\n'.format(count, currOption), Output.menuWindow, colorPair=2)
+            Output.printToWindow('{0:2d} - {1} - {2}\n'.format(count, currOption, freeActions.get(currOption)), Output.menuWindow, colorPair=2)
             indexMapping[count] = currOption
         else:
             Output.printToWindow('{0:2d} - {1}\n'.format(count, currOption), Output.menuWindow)
@@ -60,8 +60,9 @@ def getChoiceFromStack(prompt, currStack, noChoices=1):
             return chosenCard
 
 class Player:
-    def __init__(self, name):
+    def __init__(self, name, studio):
         self.name = name
+        self.studio = studio
         self.directorStack = Cards.Deck([])
         self.actorStack = Cards.Deck([])
         self.writerStack = Cards.Deck([])
@@ -74,14 +75,40 @@ class Player:
         self.theaterStack = Cards.Deck([])
         self.money = 40000
         self.prestige = 0
-        self.statuettes = 2
+        self.statuettes = 0
         self.oscars = 0
-        self.studio = None
         self.boxOfficeEarnings = 0
         self.noMoviesProduced = 0
         self.yearStatus = {}
         self.phaseStatus = {}
         self.currFreeActions = []
+        self.abilities = {}
+
+        self._initAbilities()
+    def _initAbilities(self):
+        if self.studio == MGM:
+            self.abilities[AMOVIEFIRSTSTAR] = True
+            self.abilities[ALLMOVIEBONUS] = 1
+            self.abilities[AMOVIESONLY] = True
+            self.abilities[CANTFREEREIGN] = True
+        elif self.studio == PAR:
+            self.abilities[MUSTFREEREIGN] = True
+            self.abilities[BLOCKBOOKING] = True
+            self.abilities[BMOVIESONLY] = True
+        elif self.studio == FOX:
+            self.abilities[BOGENREREROLL] = True
+        elif self.studio == UNI:
+            self.abilities[HORRORBONUS] = 2
+            self.abilities[FREEPUBLICBOOK] = True
+            self.abilities[BMOVIEPOLISH] = 2000
+            self.abilities[STARLIMIT] = 3
+        elif self.studio == WAR:
+            self.abilities[MULTIACTIONS] = 2
+            self.abilities[FILMNOIRBONUS] = 2
+            self.abilities[BMOVIESONLY] = True
+        # FOX gets a Free Theater at the start
+        if self.studio == FOX:
+            self.theaterStack.addCards(Cards.Deck([Cards.Theater(type=PRIVATE, screens=3, status=OPEN)]))
     def _addMoney(self, amount):
         self.money += amount
         return self.money
@@ -172,7 +199,7 @@ class Player:
     def _choiceDrawActorYN(self):
         return getChoiceFromList(self, 'DRAW AN ACTOR CARD?', MENUYESNO)
     def _choiceBuyActorYN(self, actor):
-        return getChoiceFromList(self, 'HIRE %s FOR $%d / YEAR?'%(actor.name, actor.salary[UNKNOWN]), MENUYESNO)
+        return getChoiceFromList(self, 'HIRE %s FOR $%d / YEAR?'%(actor.visibleName(), actor.salary[UNKNOWN]), MENUYESNO)
     def _choiceDrawCraftYN(self):
         return getChoiceFromList(self, 'DRAW A CRAFTSMAN CARD?', MENUYESNO)
     def _choiceBuyCraftYN(self, craft):
@@ -193,8 +220,12 @@ class Player:
             return False
     def _choiceSelectDirector(self):
         return getChoiceFromStack('CHOOSE A DIRECTOR', self.directorStack)
+    def _choiceDirectorFreeReign(self, director):
+        return getChoiceFromList(self, 'GIVE %s FREE REIGN?'%(director), MENUYESNO)
     def _choicePrivateBookingPhase(self, actionList):
         return getChoiceFromList(self, 'PRIVATE BOOKING PHASE', actionList)
+    def _choicePolishMovie(self):
+        return getChoiceFromList(self, 'POLISH MOVIE INTO AN A-MOVIE FOR $%d?'%(self.abilities[BMOVIEPOLISH]), MENUYESNO)
 
     def _determineValidOptions(self, actionList):
         invalidActionList = {}
@@ -245,9 +276,12 @@ class Player:
         freeActionList = {}
         for currAction in actionList:
             if currAction in ACTFREEACTIONS:
-                freeActionList.update({currAction: 'Free'})
+                freeActionList[currAction] = 'Free'
             if currAction == ACTPHASESKIP:
-                freeActionList.update({ACTPHASESKIP: 'Free'})
+                freeActionList[currAction] = 'Free'
+        # ABILITIES - BLOCKBOOKING
+        if self.studio == PAR and BLOCKBOOKING in self.abilities:
+            freeActionList[ACTPUBLICBOOK] = 'You can book multiple movies'
         return freeActionList
 
     # Free Action Methods (Trade Statuettes, Play Event Cards etc.)
@@ -278,15 +312,15 @@ class Player:
                     if i.type == ORDINARYWRITER:
                         while True:
                             currGenre = Dice.genreDie.roll()
-                            if Game.board.scriptDecks[i].countCards() > 0:
-                                self.scriptStack.addCards(Game.board.scriptDecks[i].drawCards(names=currScriptName))
+                            if Game.board.scriptDecks[currGenre].countCards() > 0:
+                                self.scriptStack.addCards(Game.board.scriptDecks[currGenre].drawCards())
                                 self.scriptStack.flipAll(FACEUP)
                                 break
                     else:
                         currScriptName = self._choiceBuyScriptChoose()[0]
-                        for i in GENRES:
-                            if Game.board.scriptDecks[i].cards[0].name == currScriptName:
-                                self.scriptStack.addCards(Game.board.scriptDecks[i].drawCards(names=currScriptName))
+                        for currGenre in GENRES:
+                            if Game.board.scriptDecks[currGenre].cards[0].name == currScriptName:
+                                self.scriptStack.addCards(Game.board.scriptDecks[currGenre].drawCards(names=currScriptName))
                                 self.scriptStack.flipAll(FACEUP)
                 self.yearStatus[SCRIPTSCLAIMED] = True
 
@@ -434,16 +468,49 @@ class Player:
                         tmpActors = self._choiceSelectActors(tmpMovie.scriptStack.cards[0])
                         if tmpActors:
                             tmpMovie.actorStack.addCards(self.actorStack.drawCards(names=tmpActors))
-                            tmpType = self._choiceAorBMovie(tmpMovie.scriptStack.cards[0])
-                            if tmpType == "A-MOVIE":    tmpMovie.type = AMOVIE
-                            elif tmpType == "B-MOVIE":  tmpMovie.type = BMOVIE
+
+                            # ABILITIES - MUSTFREEREIGN CANTFREEREIGN
+                            if MUSTFREEREIGN in self.abilities:
+                                tmpMovie.freeReign = True
+                            elif CANTFREEREIGN in self.abilities:
+                                tmpMovie.freeReign = False
+                            else:
+                                freeReign = self._choiceDirectorFreeReign(tmpDirector)
+                                if freeReign == "Y":        tmpMovie.freeReign = True
+                                elif freeReign == "N":      tmpMovie.freeReign = False
+
+                            # ABILITIES - AMOVIESONLY BMOVIESONLY
+                            if AMOVIESONLY in self.abilities:
+                                tmpMovie.type = AMOVIE
+                            elif BMOVIESONLY in self.abilities:
+                                tmpMovie.type = BMOVIE
+                            else:
+                                tmpType = self._choiceAorBMovie(tmpMovie.scriptStack.cards[0])
+                                if tmpType == "A-MOVIE":    tmpMovie.type = AMOVIE
+                                elif tmpType == "B-MOVIE":  tmpMovie.type = BMOVIE
+
+                            # ABILITIES - BMOVIEPOLISH
+                            if tmpType == "B-MOVIE" and BMOVIEPOLISH in self.abilities:
+                                tmpPolish = self._choicePolishMovie()
+
+                                if tmpPolish == "Y":
+                                    self._delMoney(2000)
+                                    tmpMovie.polished = True
+
                             if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
-                                self._delMoney(1000)
+
+                                # ABILITIES - FREEPUBLICBOOK
+                                if FREEPUBLICBOOK not in self.abilities:
+                                    self._delMoney(1000)
+
                                 self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
                                 Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
 
                                 Output.updateScreen()
-                                return True
+
+                                # ABILITIES - BLOCKBOOKING
+                                if BLOCKBOOKING not in self.abilities:
+                                    return True
                         else:
                             self.scriptStack.addCards(tmpMovie.scriptStack)
                             self.directorStack.addCards(tmpMovie.directorStack)
