@@ -22,8 +22,6 @@ for i in [1,2,3]:
     Player1.doActionPhase()
     Player1.doPrivateBookingPhase()
 
-for i in Game.board.theaterStack.cards[0].movies:
-    Output.printToWindow(menuWindow, i.name)
 
 Output.killOutput()
 

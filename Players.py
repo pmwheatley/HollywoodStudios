@@ -132,7 +132,9 @@ class Player:
             if list(diff.elements()) == []:
                 return True
         return False
-    def _addFreeActions(self, actionList):
+    def _addFreeActions(self):
+        # TODO: phaseActions not restting?
+        actionList = []
         if self.statuettes >= 2:
             if ACTTRADE2STAT not in actionList:
                 actionList.append(ACTTRADE2STAT)
@@ -248,19 +250,31 @@ class Player:
                 freeActionList.update({ACTPHASESKIP: 'Free'})
         return freeActionList
 
+    # Free Action Methods (Trade Statuettes, Play Event Cards etc.)
+    def doFreeAction(self, action):
+        if action == ACTTRADE2STAT:
+            self.statuettes -= 2
+        elif action == ACTTRADE1STAT:
+            self.statuettes -= 1
+        return True
+
     # Action methods
     def doUpkeepPhase(self):
         self.yearStatus = {}
 
         phaseActions = UPKPHASEACTIONS + [ACTPHASESKIP]
-        availableActions = phaseActions
+        availableActions = []
 
-        while availableActions != []:
-            availableActions = self._addFreeActions(phaseActions)
+        while True:
+            availableActions = phaseActions + self._addFreeActions()
+            Output.printToLog(str(availableActions))
             self._updateEmployeeStack()
 
             action = self._choiceUpkeepPhase(availableActions)
             Output.updateScreen()
+
+            if action in ACTFREEACTIONS:
+                self.doFreeAction(action)
 
             if action == ACTCLAIMSCRIPTS:
                 for i in self.writerStack.cards:
@@ -329,10 +343,11 @@ class Player:
         self.phaseStatus = {}
 
         phaseActions = CONPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
-        availableActions = phaseActions
+        availableActions = []
 
         while availableActions != []:
-            availableActions = self._addFreeActions(phaseActions)
+            availableActions = phaseActions + self._addFreeActions()
+            Output.printToLog(str(availableActions))
             action = self._choiceConstructionPhase(availableActions)
             Output.updateScreen()
             if action == ACTBUILDTHEATER:
@@ -346,10 +361,11 @@ class Player:
         return True
     def doActionPhase(self):
         phaseActions = ACTPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
-        availableActions = phaseActions
+        availableActions = []
 
         while availableActions != []:
-            availableActions = self._addFreeActions(phaseActions)
+            availableActions = phaseActions + self._addFreeActions()
+            Output.printToLog(str(availableActions))
             action = self._choiceActionPhase(availableActions)
             Output.updateScreen()
 
@@ -451,10 +467,11 @@ class Player:
         return True
     def doPrivateBookingPhase(self):
         phaseActions = PVTPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
-        availableActions = phaseActions
+        availableActions = []
 
         while availableActions != []:
-            availableActions = self._addFreeActions(phaseActions)
+            availableActions = phaseActions + self._addFreeActions()
+            Output.printToLog(str(availableActions))
             action = self._choicePrivateBookingPhase(availableActions)
             Output.updateScreen()
             if action == ACTPRIVATEBOOK:
