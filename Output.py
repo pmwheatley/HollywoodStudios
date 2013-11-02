@@ -72,7 +72,7 @@ def printToWindow(text, window, x=None, y=None, colorPair=0):
 
 def printToLog(text=""):
     global logOutput
-    printToWindow(text, logWindow)
+    printToWindow(text+'\n', logWindow)
     logOutput.write(text)
 
 def updateScreen():
@@ -144,6 +144,6 @@ def printProductionStatus():
     officeWindow.refresh()
 def printGameStatus():
     gameStatusWindow.clear()
-    printToWindow('\tYEAR: %d'%(Game.board.currYear) + '\t\tTRIMESTER: %d'%(Game.board.currTrimester) + '\tPublic Theater: %s'%(str(Game.board.theaterStack.cards[0].screens)), gameStatusWindow, 1, 1)
+    printToWindow('\tYEAR: %d'%(Game.board.currYear) + '\t\tTRIMESTER: %d'%(Game.board.currTrimester) + '\tPublic Theater: %s'%(str(Game.board.theaterStack.cards[0].screens - Game.board.theaterStack.cards[0].movies.countCards())), gameStatusWindow, 1, 1)
     #printToWindow('\tYEAR: %d'%(currYear) + '\t\tTRIMESTER: %d'%(currTrimester) + '\tPublic Theater: %s'%(str(len([i for i in theaters[0].screens if i == None]))), gameStatusWindow, 1, 1)
     gameStatusWindow.refresh()

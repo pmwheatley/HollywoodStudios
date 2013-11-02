@@ -138,28 +138,26 @@ class Player:
     def _checkValidScript(self, script, actorStack):
         currActorTypes = []
 
-        if self.directorStack.countCards() > 0:
+        for currActor in actorStack.cards:
+            currActorTypes.append(currActor.type)
 
-            for currActor in actorStack.cards:
-                currActorTypes.append(currActor.type)
+        diff = Counter(script.actors) - Counter(currActorTypes)
+        if list(diff.elements()) == []:
+            return True
 
+        if QL in currActorTypes:
+            # Check if QL can be used as SW
+            currActorTypes.remove(QL)
+            currActorTypes.append(SW)
             diff = Counter(script.actors) - Counter(currActorTypes)
             if list(diff.elements()) == []:
                 return True
-
-            if QL in currActorTypes:
-                # Check if QL can be used as SW
-                currActorTypes.remove(QL)
-                currActorTypes.append(SW)
-                diff = Counter(script.actors) - Counter(currActorTypes)
-                if list(diff.elements()) == []:
-                    return True
-                # Check if QL can be used as S
-                currActorTypes.remove(SW)
-                currActorTypes.append(S)
-                diff = Counter(script.actors) - Counter(currActorTypes)
-                if list(diff.elements()) == []:
-                    return True
+            # Check if QL can be used as S
+            currActorTypes.remove(SW)
+            currActorTypes.append(S)
+            diff = Counter(script.actors) - Counter(currActorTypes)
+            if list(diff.elements()) == []:
+                return True
 
         return False
     def _addFreeActions(self):
@@ -249,6 +247,7 @@ class Player:
     # Book a movie
     def doBookMovie(self, theatre=PUBLIC):
         validScripts = []
+        tmpActors = []
         for i in self.scriptStack.cards:
             if self._checkValidScript(i, self.actorStack):
                 validScripts.append(i)
@@ -258,12 +257,17 @@ class Player:
                 tmpMovie = Cards.Movie(currScriptName)
                 tmpMovie.scriptStack = self.scriptStack.drawCards(names=currScriptName)
                 tmpDirector = self._choiceSelectDirector()
+                Output.printToLog(str(tmpDirector))
                 tmpMovie.directorStack.addCards(self.directorStack.drawCards(names=tmpDirector))
                 tmpActors = self._choiceSelectActors(tmpMovie.scriptStack.cards[0])
+                Output.printToLog(str(tmpActors))
                 if tmpActors:
                     tmpMovie.actorStack.addCards(self.actorStack.drawCards(names=tmpActors))
 
                     tmpMovie = self._applyAbilitiesBooking(tmpMovie)
+
+                    Output.printToLog(str(Game.board.theaterStack.cards[0].movies.countCards()))
+                    Output.printToLog(str(Game.board.theaterStack.cards[0].screens))
 
                     if theatre == PUBLIC:
                         if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
@@ -273,11 +277,13 @@ class Player:
                             if FREEPUBLICBOOK not in self.abilities:
                                 self._delMoney(1000)
                             self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
-                            Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                            Output.printToLog('MOVIE BOOKED')
                             Output.updateScreen()
                             # ABILITIES - BLOCKBOOKING
                             if BLOCKBOOKING not in self.abilities:
                                 return True
+                        else:
+                            Output.printToLog('NO SCREENS AVAILABLE')
                     elif theatre == PRIVATE:
                         for i in self.theaterStack.cards:
                             if i.bookMovie(Cards.Deck([tmpMovie])):
@@ -287,20 +293,24 @@ class Player:
                                 if FREEPUBLICBOOK not in self.abilities:
                                     self._delMoney(1000)
                                 self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
-                                Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                                Output.printToLog('MOVIE BOOKED')
                                 Output.updateScreen()
                                 # ABILITIES - BLOCKBOOKING
                                 if BLOCKBOOKING not in self.abilities:
                                     return True
+                            else:
+                                Output.printToLog('NO SCREENS AVAILABLE')
                 else:
-                    self.scriptStack.addCards(tmpMovie.scriptStack)
-                    self.directorStack.addCards(tmpMovie.directorStack)
-                    self.actorStack.addCards(tmpMovie.actorStack)
-                    Output.printToWindow('INVALID SELECTION', Output.menuWindow)
+                    Output.printToLog('INVALID SELECTION')
             else:
-                Output.printToWindow('NO DIRECTORS AVAILABLE', Output.menuWindow)
+                Output.printToLog('NO DIRECTORS AVAILABLE')
         else:
-            Output.printToWindow('NO VALID SCRIPTS', Output.menuWindow)
+            Output.printToLog('NO VALID SCRIPTS')
+
+        self.scriptStack.addCards(tmpMovie.scriptStack)
+        self.directorStack.addCards(tmpMovie.directorStack)
+        self.actorStack.addCards(tmpMovie.actorStack)
+        return False
 
     # Director / Studio Abilities
     def _applyAbilitiesBooking(self, movie):
@@ -543,7 +553,6 @@ class Player:
         # ABILITIES - MULTIACTIONS
         if MULTIACTIONS in self.abilities:
             for i in range(0, self.abilities[MULTIACTIONS]):
-                Output.printToLog('MULTIACTIONS: %d'%i)
                 self.doActionPhaseAction()
         else:
             self.doActionPhaseAction()
@@ -612,8 +621,8 @@ class Player:
                     return True
 
             elif action == ACTPUBLICBOOK:
-                self.doBookMovie(PUBLIC)
-                return True
+                if self.doBookMovie(PUBLIC):
+                    return True
 
             elif action == ACTPHASESKIP:
                 Output.updateScreen()

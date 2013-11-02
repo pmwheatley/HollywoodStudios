@@ -1,6 +1,6 @@
 import copy
 
-import Cards, CardData, Output
+import Cards, CardData
 from Constants import *
 
 class Board():
@@ -72,6 +72,10 @@ class Board():
                 currPlayer.actorStack.addCards(self.actorsDeck.drawCards(ids=53))
                 currPlayer.actorStack.addCards(self.actorsDeck.drawCards(ids=39))
                 currPlayer.crewStack.addCards(self.tmpCrewDeck.drawCards(names=ORDINARYCREW))
+
+    def revealScripts(self):
+        for currGenre in GENRES:
+            self.scriptDecks[currGenre].cards[0].face = FACEUP
 
 global board
 board = Board()

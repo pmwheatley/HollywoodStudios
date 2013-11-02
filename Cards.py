@@ -348,6 +348,7 @@ class Theater(Card):
     def bookMovie(self, movieStack):
         if self.movies.countCards() < self.screens:
             self.movies.addCards(movieStack)
+            print self.movies.cards
             return True
         else:
             return False

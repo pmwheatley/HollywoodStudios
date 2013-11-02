@@ -8,6 +8,7 @@ Output.initOutput()
 Player1 = Players.HumanPlayer("Phil", WAR)
 
 Game.board = Game.Board([Player1])
+Game.board.revealScripts()
 
 Output.updateScreen()
 
