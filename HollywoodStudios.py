@@ -5,7 +5,7 @@ from Constants import *
 
 Output.initOutput()
 
-Player1 = Players.Player("Phil", MGM)
+Player1 = Players.HumanPlayer("Phil", WAR)
 
 Game.board = Game.Board([Player1])
 

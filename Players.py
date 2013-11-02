@@ -138,26 +138,29 @@ class Player:
     def _checkValidScript(self, script, actorStack):
         currActorTypes = []
 
-        for currActor in actorStack.cards:
-            currActorTypes.append(currActor.type)
+        if self.directorStack.countCards() > 0:
 
-        diff = Counter(script.actors) - Counter(currActorTypes)
-        if list(diff.elements()) == []:
-            return True
+            for currActor in actorStack.cards:
+                currActorTypes.append(currActor.type)
 
-        if QL in currActorTypes:
-            # Check if QL can be used as SW
-            currActorTypes.remove(QL)
-            currActorTypes.append(SW)
             diff = Counter(script.actors) - Counter(currActorTypes)
             if list(diff.elements()) == []:
                 return True
-            # Check if QL can be used as S
-            currActorTypes.remove(SW)
-            currActorTypes.append(S)
-            diff = Counter(script.actors) - Counter(currActorTypes)
-            if list(diff.elements()) == []:
-                return True
+
+            if QL in currActorTypes:
+                # Check if QL can be used as SW
+                currActorTypes.remove(QL)
+                currActorTypes.append(SW)
+                diff = Counter(script.actors) - Counter(currActorTypes)
+                if list(diff.elements()) == []:
+                    return True
+                # Check if QL can be used as S
+                currActorTypes.remove(SW)
+                currActorTypes.append(S)
+                diff = Counter(script.actors) - Counter(currActorTypes)
+                if list(diff.elements()) == []:
+                    return True
+
         return False
     def _addFreeActions(self):
         # TODO: phaseActions not restting?
@@ -171,61 +174,6 @@ class Player:
             if ACTTRADE1STAT not in actionList:
                 actionList.append(ACTTRADE1STAT)
         return actionList
-
-    # Decision Making methods
-    def _choiceUpkeepPhase(self, actionList):
-        return getChoiceFromList(self, 'UPKEEP PHASE', actionList)
-    def _choiceUpkeepPaySalariesYN(self):
-        return getChoiceFromList(self, 'PAY $%d IN SALARIES?'%self._countSalaries(), MENUYESNO)
-    def _choiceUpkeepFireEmployee(self):
-        return getChoiceFromStack('FIRE AN EMPLOYEE', self.employeeStack)
-    def _choiceUpkeepPayUpkeepYN(self):
-        return getChoiceFromList(self, 'PAY $%d IN THEATRE UPKEEP?'%self._countUpkeep(), MENUYESNO)
-    def _choiceConstructionPhase(self, actionList):
-        return getChoiceFromList(self, 'CONSTRUCTION PHASE', actionList)
-    def _choiceBuildTheaterYN(self):
-        return getChoiceFromList(self, 'CONSTRUCT A THEATER FOR $%d'%THEATERCOST, MENUYESNO)
-    def _choiceActionPhase(self, actionList):
-        return getChoiceFromList(self, 'ACTION PHASE', actionList)
-    def _choiceBuyScriptChoose(self):
-        tmpScriptStack = Cards.Deck([])
-        tmpScripts = []
-        for i in GENRES:
-            tmpScripts.append(Game.board.scriptDecks[i].cards[0])
-        tmpScriptStack.addCards(Cards.Deck(tmpScripts))
-        return getChoiceFromStack('BUY A SCRIPT', tmpScriptStack)
-    def _choiceBuyScriptYN(self):
-        return getChoiceFromList(self, 'BUY SCRIPT FOR $%d?'%(SCRIPTCOST), MENUYESNO)
-    def _choiceDrawActorYN(self):
-        return getChoiceFromList(self, 'DRAW AN ACTOR CARD?', MENUYESNO)
-    def _choiceBuyActorYN(self, actor):
-        return getChoiceFromList(self, 'HIRE %s FOR $%d / YEAR?'%(actor.visibleName(), actor.salary[UNKNOWN]), MENUYESNO)
-    def _choiceDrawCraftYN(self):
-        return getChoiceFromList(self, 'DRAW A CRAFTSMAN CARD?', MENUYESNO)
-    def _choiceBuyCraftYN(self, craft):
-        return getChoiceFromList(self, 'HIRE %s FOR $%d / YEAR?'%(craft.name, craft.salary[UNKNOWN]), MENUYESNO)
-    def _choiceHireOffice(self):
-        return getChoiceFromStack('HIRE FROM THE EMPLOYMENT OFFICE', Game.board.employmentOffice)
-    def _choiceHireYN(self, employee):
-        return getChoiceFromList(self, 'HIRE %s?'%(employee), MENUYESNO)
-    def _choiceScriptBook(self, scripts):
-        return getChoiceFromStack('BOOK A MOVIE?', scripts)
-    def _choiceAorBMovie(self, script):
-        return getChoiceFromList(self, 'BOOK %s AS AN A-MOVIE ($%d) OR B-MOVIE ($%d)?'%(script.visibleName(), script.budgetA, script.budgetB), ["A-MOVIE", "B-MOVIE"])
-    def _choiceSelectActors(self, script):
-        tmpActorNames = getChoiceFromStack('CHOOSE ACTORS - %s'%script.actors, self.actorStack, noChoices=len(script.actors))
-        if self._checkValidScript(script, self.actorStack.copyCards(names=tmpActorNames)):
-            return tmpActorNames
-        else:
-            return False
-    def _choiceSelectDirector(self):
-        return getChoiceFromStack('CHOOSE A DIRECTOR', self.directorStack)
-    def _choiceDirectorFreeReign(self, director):
-        return getChoiceFromList(self, 'GIVE %s FREE REIGN?'%(director), MENUYESNO)
-    def _choicePrivateBookingPhase(self, actionList):
-        return getChoiceFromList(self, 'PRIVATE BOOKING PHASE', actionList)
-    def _choicePolishMovie(self):
-        return getChoiceFromList(self, 'POLISH MOVIE INTO AN A-MOVIE FOR $%d?'%(self.abilities[BMOVIEPOLISH]), MENUYESNO)
 
     def _determineValidOptions(self, actionList):
         invalidActionList = {}
@@ -260,6 +208,13 @@ class Player:
                 invalidActionList[ACTPUBLICBOOK] = 'No Screens Available'
             elif Game.board.employmentOffice.countCards() == 0:
                 invalidActionList[ACTHIREOFFICE] = 'No Employees Available'
+            for i in self.scriptStack.cards:
+                if self._checkValidScript(i, self.actorStack) == True:
+                    if ACTPUBLICBOOK in invalidActionList:
+                        del invalidActionList[ACTPUBLICBOOK]
+                    break
+                else:
+                    invalidActionList[ACTPUBLICBOOK] = 'No Valid Scripts'
 
             # PRIVATE BOOKING PHASE
             tmpScreens = False
@@ -293,25 +248,39 @@ class Player:
         return True
     # Book a movie
     def doBookMovie(self, theatre=PUBLIC):
-            validScripts = []
-            for i in self.scriptStack.cards:
-                if self._checkValidScript(i, self.actorStack):
-                    validScripts.append(i)
-            if len(validScripts) > 0:
-                currScriptName = self._choiceScriptBook(Cards.Deck(validScripts))[0]
-                if self.directorStack.countCards() > 0:
-                    tmpMovie = Cards.Movie(currScriptName)
-                    tmpMovie.scriptStack = self.scriptStack.drawCards(names=currScriptName)
-                    tmpDirector = self._choiceSelectDirector()
-                    tmpMovie.directorStack.addCards(self.directorStack.drawCards(names=tmpDirector))
-                    tmpActors = self._choiceSelectActors(tmpMovie.scriptStack.cards[0])
-                    if tmpActors:
-                        tmpMovie.actorStack.addCards(self.actorStack.drawCards(names=tmpActors))
+        validScripts = []
+        for i in self.scriptStack.cards:
+            if self._checkValidScript(i, self.actorStack):
+                validScripts.append(i)
+        if len(validScripts) > 0:
+            currScriptName = self._choiceScriptBook(Cards.Deck(validScripts))[0]
+            if self.directorStack.countCards() > 0:
+                tmpMovie = Cards.Movie(currScriptName)
+                tmpMovie.scriptStack = self.scriptStack.drawCards(names=currScriptName)
+                tmpDirector = self._choiceSelectDirector()
+                tmpMovie.directorStack.addCards(self.directorStack.drawCards(names=tmpDirector))
+                tmpActors = self._choiceSelectActors(tmpMovie.scriptStack.cards[0])
+                if tmpActors:
+                    tmpMovie.actorStack.addCards(self.actorStack.drawCards(names=tmpActors))
 
-                        tmpMovie = self._applyAbilitiesBooking(tmpMovie)
+                    tmpMovie = self._applyAbilitiesBooking(tmpMovie)
 
-                        if theatre == PUBLIC:
-                            if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
+                    if theatre == PUBLIC:
+                        if Game.board.theaterStack.cards[0].bookMovie(Cards.Deck([tmpMovie])):
+                            # Pay movie budget
+                            self._delMoney(tmpMovie.budget)
+                            # ABILITIES - FREEPUBLICBOOK
+                            if FREEPUBLICBOOK not in self.abilities:
+                                self._delMoney(1000)
+                            self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
+                            Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
+                            Output.updateScreen()
+                            # ABILITIES - BLOCKBOOKING
+                            if BLOCKBOOKING not in self.abilities:
+                                return True
+                    elif theatre == PRIVATE:
+                        for i in self.theaterStack.cards:
+                            if i.bookMovie(Cards.Deck([tmpMovie])):
                                 # Pay movie budget
                                 self._delMoney(tmpMovie.budget)
                                 # ABILITIES - FREEPUBLICBOOK
@@ -323,29 +292,15 @@ class Player:
                                 # ABILITIES - BLOCKBOOKING
                                 if BLOCKBOOKING not in self.abilities:
                                     return True
-                        elif theatre == PRIVATE:
-                            for i in self.theaterStack.cards:
-                                if i.bookMovie(Cards.Deck([tmpMovie])):
-                                    # Pay movie budget
-                                    self._delMoney(tmpMovie.budget)
-                                    # ABILITIES - FREEPUBLICBOOK
-                                    if FREEPUBLICBOOK not in self.abilities:
-                                        self._delMoney(1000)
-                                    self.productionStack[tmpMovie.type].addCards(Cards.Deck([tmpMovie]));
-                                    Output.printToWindow('MOVIE BOOKED', Output.menuWindow)
-                                    Output.updateScreen()
-                                    # ABILITIES - BLOCKBOOKING
-                                    if BLOCKBOOKING not in self.abilities:
-                                        return True
-                    else:
-                        self.scriptStack.addCards(tmpMovie.scriptStack)
-                        self.directorStack.addCards(tmpMovie.directorStack)
-                        self.actorStack.addCards(tmpMovie.actorStack)
-                        Output.printToWindow('INVALID SELECTION', Output.menuWindow)
                 else:
-                    Output.printToWindow('NO DIRECTORS AVAILABLE', Output.menuWindow)
+                    self.scriptStack.addCards(tmpMovie.scriptStack)
+                    self.directorStack.addCards(tmpMovie.directorStack)
+                    self.actorStack.addCards(tmpMovie.actorStack)
+                    Output.printToWindow('INVALID SELECTION', Output.menuWindow)
             else:
-                Output.printToWindow('NO VALID SCRIPTS', Output.menuWindow)
+                Output.printToWindow('NO DIRECTORS AVAILABLE', Output.menuWindow)
+        else:
+            Output.printToWindow('NO VALID SCRIPTS', Output.menuWindow)
 
     # Director / Studio Abilities
     def _applyAbilitiesBooking(self, movie):
@@ -585,9 +540,17 @@ class Player:
             Output.updateScreen()
         return True
     def doActionPhase(self):
+        # ABILITIES - MULTIACTIONS
+        if MULTIACTIONS in self.abilities:
+            for i in range(0, self.abilities[MULTIACTIONS]):
+                Output.printToLog('MULTIACTIONS: %d'%i)
+                self.doActionPhaseAction()
+        else:
+            self.doActionPhaseAction()
+        return True
+    def doActionPhaseAction(self):
         phaseActions = ACTPHASEACTIONS + self.currFreeActions + [ACTPHASESKIP]
         availableActions = []
-
         while True:
             availableActions = phaseActions + self._addFreeActions()
             action = self._choiceActionPhase(availableActions)
@@ -618,7 +581,7 @@ class Player:
 
             elif action == ACTDRAWCRAFT:
                 if self._choiceDrawCraftYN() == YES:
-                    tmpHand = Game.board.actorsDeck.drawCards()
+                    tmpHand = Game.board.craftsDeck.drawCards()
                     if self._choiceBuyCraftYN(tmpHand.cards[0]) == YES:
                         if tmpHand.cards[0].cardType == DIRECTORCARD:
                             self.directorStack.addCards(tmpHand)
@@ -650,6 +613,7 @@ class Player:
 
             elif action == ACTPUBLICBOOK:
                 self.doBookMovie(PUBLIC)
+                return True
 
             elif action == ACTPHASESKIP:
                 Output.updateScreen()
@@ -674,3 +638,115 @@ class Player:
                 return True
         Output.updateScreen()
         return True
+
+class HumanPlayer(Player):
+    # Decision Making methods
+    def _choiceUpkeepPhase(self, actionList):
+        return getChoiceFromList(self, 'UPKEEP PHASE', actionList)
+    def _choiceUpkeepPaySalariesYN(self):
+        return getChoiceFromList(self, 'PAY $%d IN SALARIES?'%self._countSalaries(), MENUYESNO)
+    def _choiceUpkeepFireEmployee(self):
+        return getChoiceFromStack('FIRE AN EMPLOYEE', self.employeeStack)
+    def _choiceUpkeepPayUpkeepYN(self):
+        return getChoiceFromList(self, 'PAY $%d IN THEATRE UPKEEP?'%self._countUpkeep(), MENUYESNO)
+    def _choiceConstructionPhase(self, actionList):
+        return getChoiceFromList(self, 'CONSTRUCTION PHASE', actionList)
+    def _choiceBuildTheaterYN(self):
+        return getChoiceFromList(self, 'CONSTRUCT A THEATER FOR $%d'%THEATERCOST, MENUYESNO)
+    def _choiceActionPhase(self, actionList):
+        return getChoiceFromList(self, 'ACTION PHASE', actionList)
+    def _choiceBuyScriptChoose(self):
+        tmpScriptStack = Cards.Deck([])
+        tmpScripts = []
+        for i in GENRES:
+            tmpScripts.append(Game.board.scriptDecks[i].cards[0])
+        tmpScriptStack.addCards(Cards.Deck(tmpScripts))
+        return getChoiceFromStack('BUY A SCRIPT', tmpScriptStack)
+    def _choiceBuyScriptYN(self):
+        return getChoiceFromList(self, 'BUY SCRIPT FOR $%d?'%(SCRIPTCOST), MENUYESNO)
+    def _choiceDrawActorYN(self):
+        return getChoiceFromList(self, 'DRAW AN ACTOR CARD?', MENUYESNO)
+    def _choiceBuyActorYN(self, actor):
+        return getChoiceFromList(self, 'HIRE %s FOR $%d / YEAR?'%(actor.visibleName(), actor.salary[UNKNOWN]), MENUYESNO)
+    def _choiceDrawCraftYN(self):
+        return getChoiceFromList(self, 'DRAW A CRAFTSMAN CARD?', MENUYESNO)
+    def _choiceBuyCraftYN(self, craft):
+        return getChoiceFromList(self, 'HIRE %s FOR $%d / YEAR?'%(craft.name, craft.salary), MENUYESNO)
+    def _choiceHireOffice(self):
+        return getChoiceFromStack('HIRE FROM THE EMPLOYMENT OFFICE', Game.board.employmentOffice)
+    def _choiceHireYN(self, employee):
+        return getChoiceFromList(self, 'HIRE %s?'%(employee), MENUYESNO)
+    def _choiceScriptBook(self, scripts):
+        return getChoiceFromStack('BOOK A MOVIE?', scripts)
+    def _choiceAorBMovie(self, script):
+        return getChoiceFromList(self, 'BOOK %s AS AN A-MOVIE ($%d) OR B-MOVIE ($%d)?'%(script.visibleName(), script.budgetA, script.budgetB), ["A-MOVIE", "B-MOVIE"])
+    def _choiceSelectActors(self, script):
+        tmpActorNames = getChoiceFromStack('CHOOSE ACTORS - %s'%script.actors, self.actorStack, noChoices=len(script.actors))
+        if self._checkValidScript(script, self.actorStack.copyCards(names=tmpActorNames)):
+            return tmpActorNames
+        else:
+            return False
+    def _choiceSelectDirector(self):
+        return getChoiceFromStack('CHOOSE A DIRECTOR', self.directorStack)
+    def _choiceDirectorFreeReign(self, director):
+        return getChoiceFromList(self, 'GIVE %s FREE REIGN?'%(director), MENUYESNO)
+    def _choicePrivateBookingPhase(self, actionList):
+        return getChoiceFromList(self, 'PRIVATE BOOKING PHASE', actionList)
+    def _choicePolishMovie(self):
+        return getChoiceFromList(self, 'POLISH MOVIE INTO AN A-MOVIE FOR $%d?'%(self.abilities[BMOVIEPOLISH]), MENUYESNO)
+
+class BasicAIPlayer(Player):
+    # Decision Making methods
+    def _choiceUpkeepPhase(self, actionList):
+        return getChoiceFromList(self, 'UPKEEP PHASE', actionList)
+    def _choiceUpkeepPaySalariesYN(self):
+        return getChoiceFromList(self, 'PAY $%d IN SALARIES?'%self._countSalaries(), MENUYESNO)
+    def _choiceUpkeepFireEmployee(self):
+        return getChoiceFromStack('FIRE AN EMPLOYEE', self.employeeStack)
+    def _choiceUpkeepPayUpkeepYN(self):
+        return getChoiceFromList(self, 'PAY $%d IN THEATRE UPKEEP?'%self._countUpkeep(), MENUYESNO)
+    def _choiceConstructionPhase(self, actionList):
+        return getChoiceFromList(self, 'CONSTRUCTION PHASE', actionList)
+    def _choiceBuildTheaterYN(self):
+        return getChoiceFromList(self, 'CONSTRUCT A THEATER FOR $%d'%THEATERCOST, MENUYESNO)
+    def _choiceActionPhase(self, actionList):
+        return getChoiceFromList(self, 'ACTION PHASE', actionList)
+    def _choiceBuyScriptChoose(self):
+        tmpScriptStack = Cards.Deck([])
+        tmpScripts = []
+        for i in GENRES:
+            tmpScripts.append(Game.board.scriptDecks[i].cards[0])
+        tmpScriptStack.addCards(Cards.Deck(tmpScripts))
+        return getChoiceFromStack('BUY A SCRIPT', tmpScriptStack)
+    def _choiceBuyScriptYN(self):
+        return getChoiceFromList(self, 'BUY SCRIPT FOR $%d?'%(SCRIPTCOST), MENUYESNO)
+    def _choiceDrawActorYN(self):
+        return getChoiceFromList(self, 'DRAW AN ACTOR CARD?', MENUYESNO)
+    def _choiceBuyActorYN(self, actor):
+        return getChoiceFromList(self, 'HIRE %s FOR $%d / YEAR?'%(actor.visibleName(), actor.salary[UNKNOWN]), MENUYESNO)
+    def _choiceDrawCraftYN(self):
+        return getChoiceFromList(self, 'DRAW A CRAFTSMAN CARD?', MENUYESNO)
+    def _choiceBuyCraftYN(self, craft):
+        return getChoiceFromList(self, 'HIRE %s FOR $%d / YEAR?'%(craft.name, craft.salary[UNKNOWN]), MENUYESNO)
+    def _choiceHireOffice(self):
+        return getChoiceFromStack('HIRE FROM THE EMPLOYMENT OFFICE', Game.board.employmentOffice)
+    def _choiceHireYN(self, employee):
+        return getChoiceFromList(self, 'HIRE %s?'%(employee), MENUYESNO)
+    def _choiceScriptBook(self, scripts):
+        return getChoiceFromStack('BOOK A MOVIE?', scripts)
+    def _choiceAorBMovie(self, script):
+        return getChoiceFromList(self, 'BOOK %s AS AN A-MOVIE ($%d) OR B-MOVIE ($%d)?'%(script.visibleName(), script.budgetA, script.budgetB), ["A-MOVIE", "B-MOVIE"])
+    def _choiceSelectActors(self, script):
+        tmpActorNames = getChoiceFromStack('CHOOSE ACTORS - %s'%script.actors, self.actorStack, noChoices=len(script.actors))
+        if self._checkValidScript(script, self.actorStack.copyCards(names=tmpActorNames)):
+            return tmpActorNames
+        else:
+            return False
+    def _choiceSelectDirector(self):
+        return getChoiceFromStack('CHOOSE A DIRECTOR', self.directorStack)
+    def _choiceDirectorFreeReign(self, director):
+        return getChoiceFromList(self, 'GIVE %s FREE REIGN?'%(director), MENUYESNO)
+    def _choicePrivateBookingPhase(self, actionList):
+        return getChoiceFromList(self, 'PRIVATE BOOKING PHASE', actionList)
+    def _choicePolishMovie(self):
+        return getChoiceFromList(self, 'POLISH MOVIE INTO AN A-MOVIE FOR $%d?'%(self.abilities[BMOVIEPOLISH]), MENUYESNO)
